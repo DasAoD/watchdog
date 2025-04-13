@@ -6,4 +6,5 @@ After compilation intended for execution under Windows.
 Python and pyinstaller for Windows are required to create and compile the program.
 
 To compile Python into a single .exe file that contains all dependencies:
-pyinstaller --onefile --windowed --icon="watchdog.ico" --add-data="watchdog.ico;." watchdog.py
+
+`pyinstaller --onefile --windowed --icon="watchdog.ico" --add-data="watchdog.ico;." watchdog.py`
