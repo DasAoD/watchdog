@@ -517,4 +517,3 @@ if __name__ == "__main__":
             if watchdog_thread:
                  watchdog_thread.join(timeout=1.0)
         debug_log("Watchdog Skript Ende")
-        
