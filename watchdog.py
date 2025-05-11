@@ -16,7 +16,7 @@ try:
 except ImportError:
     CAN_CHECK_REGISTRY = False
     print("WARNUNG: Modul 'winreg' nicht gefunden. System-Theme-Erkennung nicht verfügbar.")
-import sv_ttk # Für Dark/Light Theme
+import sv_ttk
 
 # --- Konstanten und globale Variablen ---
 try:
@@ -35,7 +35,7 @@ DEFAULT_CHECK_CYCLE_SEC = 60
 DEFAULT_START_DELAY_SEC = 15
 DEBUG_MODE = False
 SHORT_ADLIB_INTERVAL_SEC = 1.0
-BASE_FONT_SIZE = 10 # NEU: Globale Basisschriftgröße (z.B. 8, 9, 10)
+BASE_FONT_SIZE = 10
 
 # Globale Variablen
 config = configparser.ConfigParser(inline_comment_prefixes=('#',';'), interpolation=None)
@@ -48,7 +48,7 @@ watchdog_thread = None
 stop_event = None
 
 # i18n Variablen
-current_language = "de" # Default
+current_language = "de"
 translations = {}
 supported_languages = {"Deutsch": "de", "English": "en", "Česky": "cz", "Français": "fr", "Italiano": "it", "Español": "es", "Magyar": "hu"}
 language_var = None
@@ -71,55 +71,52 @@ settings_frame = None; programs_frame = None; add_frame = None; theme_frame = No
 r_system = None; r_light = None; r_dark = None; language_combo = None
 
 # --- Hilfsfunktionen ---
-# --- Hilfsfunktionen ---
 
 def get_base_path():
-    """Ermittelt den Basispfad für Ressourcen, abhängig davon, ob die Anwendung gebündelt ist."""
     try:
-        # PyInstaller erstellt einen temporären Ordner und speichert den Pfad in _MEIPASS
         base_path = sys._MEIPASS
     except Exception:
-        # Wenn nicht gebündelt, ist der Basispfad der Ordner des Hauptskripts
-        base_path = application_path # 'application_path' wird am Anfang des Skripts definiert
+        base_path = application_path
     return base_path
 
 def get_lang_resource_path(relative_filename):
-    """Gibt den Pfad zu einer Ressource im 'lang'-Unterordner zurück."""
     base_path = get_base_path()
     return os.path.join(base_path, "lang", relative_filename)
 
 def get_icon_resource_path(relative_filename):
-    """Gibt den Pfad zu einer Ressource im 'icon'-Unterordner zurück."""
     base_path = get_base_path()
     return os.path.join(base_path, "icon", relative_filename)
 
-# Die alte resource_path Funktion wird nicht mehr direkt verwendet oder kann entfernt werden,
-# wenn alle Aufrufe auf die neuen Funktionen umgestellt sind.
-# def resource_path(relative_path):
-#     try: base_path = sys._MEIPASS
-#     except Exception: base_path = application_path
-#     return os.path.join(base_path, "lang", relative_path) # Diese war spezifisch für "lang"
-
 def debug_log(message):
-    log_message = f"DEBUG ({time.strftime('%H:%M:%S')}): {message}"
-    if DEBUG_MODE: print(log_message)
-    def _update_status_safe(msg_to_set):
+    if DEBUG_MODE:
+        console_log_message = f"DEBUG ({time.strftime('%H:%M:%S')}): {message}"
+        print(console_log_message)
+
+def update_status_message(translation_key, *args, **kwargs):
+    message_to_display = translate(translation_key, *args, **kwargs)
+    
+    if DEBUG_MODE:
+        print(f"STATUS_UI ({time.strftime('%H:%M:%S')}): {message_to_display}")
+
+    def _update_status_safe_ui(msg_to_set):
         try:
-             if root and root.winfo_exists() and status_bar_text: status_bar_text.set(msg_to_set)
-        except tk.TclError: pass
-        except Exception as e_update: print(f"LOG-ERROR: Status Set Error: {e_update}")
-    try:
-        if root and status_bar_text:
-            if root.winfo_exists():
-                current_thread = threading.current_thread(); main_thread = threading.main_thread()
-                status_update_msg = message[:120]
-                if current_thread == main_thread: _update_status_safe(status_update_msg)
-                else: root.after(0, _update_status_safe, status_update_msg)
-    except tk.TclError: pass
-    except Exception as e: print(f"LOG-ERROR: General debug_log Error: {e}"); pass
+            if root and root.winfo_exists() and status_bar_text:
+                status_bar_text.set(msg_to_set[:120])
+        except tk.TclError:
+            pass
+        except Exception as e_update_ui:
+            print(f"STATUS_UPDATE_ERROR: {e_update_ui}")
+
+    if root and status_bar_text:
+        current_thread = threading.current_thread()
+        main_thread = threading.main_thread()
+        if current_thread == main_thread:
+            _update_status_safe_ui(message_to_display)
+        else:
+            root.after(0, _update_status_safe_ui, message_to_display)
 
 def apply_custom_font_sizes(base_size):
-    global style 
+    global style
 
     if not style:
         debug_log("WARNUNG: apply_custom_font_sizes: ttk.Style Objekt nicht initialisiert.")
@@ -134,15 +131,21 @@ def apply_custom_font_sizes(base_size):
 
         base_font_spec = (current_font_family, base_size)
 
-        # 1. Treeview-Überschriften
         treeview_heading_font_spec = (current_font_family, base_size) 
         try:
-            style.configure("Treeview.Heading", font=treeview_heading_font_spec)
-            debug_log(f"Treeview.Heading style konfiguriert mit Font: {treeview_heading_font_spec}")
+            style.configure("Treeview.Heading", font=treeview_heading_font_spec, padding=(3, 2)) 
+            debug_log(f"Treeview.Heading style konfiguriert mit Font: {treeview_heading_font_spec} und Padding (3,2)")
         except Exception as e_tv_head:
             debug_log(f"Fehler bei Konfiguration des Treeview.Heading Styles: {e_tv_head}")
         
-        # 2. Benutzerdefinierter Style für die "(?)" Hilfe-Labels
+        try:
+            font_for_rows = tkFont.Font(family=current_font_family, size=base_size)
+            row_height = font_for_rows.metrics("linespace") + 6
+            style.configure("Treeview", rowheight=row_height, font=base_font_spec) 
+            debug_log(f"Treeview style konfiguriert mit Font: {base_font_spec} und Rowheight: {row_height}")
+        except Exception as e_tv_row:
+            debug_log(f"Fehler bei Konfiguration des Treeview Styles (rowheight/font): {e_tv_row}")
+
         try: 
             help_label_font_obj = tkFont.Font(family=current_font_family, size=max(7, base_size - 1))
             style.configure("Help.TLabel", font=help_label_font_obj, foreground="blue")
@@ -150,29 +153,25 @@ def apply_custom_font_sizes(base_size):
         except Exception as e_help_style: 
             debug_log(f"Fehler beim Konfigurieren des Help.TLabel Styles: {e_help_style}")
 
-        # 3. Schrift für TButton (war schon erfolgreich)
         try:
             style.configure("TButton", font=base_font_spec)
             debug_log(f"TButton style konfiguriert mit Font: {base_font_spec}")
         except Exception as e_button_style:
             debug_log(f"Fehler bei TButton Style Konfiguration: {e_button_style}")
 
-        # 4. Schrift für TRadiobutton (war schon erfolgreich)
         try:
-            style.configure("TRadiobutton", font=base_font_spec) 
-            debug_log(f"TRadiobutton style konfiguriert mit Font: {base_font_spec}")
+            style.configure("TRadiobutton", font=base_font_spec, padding=(3,1)) # Behalte das Padding hier bei
+            debug_log(f"TRadiobutton style konfiguriert mit Font: {base_font_spec} und Padding (3,1)")
         except Exception as e_radio_style:
             debug_log(f"Fehler bei TRadiobutton Style Konfiguration: {e_radio_style}")
             
-        # ***** NEU: Schrift für TCheckbutton explizit setzen *****
         try:
-            style.configure("TCheckbutton", font=base_font_spec) # Beeinflusst den Text neben der Checkbox
-            debug_log(f"TCheckbutton style konfiguriert mit Font: {base_font_spec}")
+            style.configure("TCheckbutton", font=base_font_spec, padding=(3,1)) # Behalte das Padding hier bei
+            debug_log(f"TCheckbutton style konfiguriert mit Font: {base_font_spec} und Padding (3,1)")
         except Exception as e_check_style:
             debug_log(f"Fehler bei TCheckbutton Style Konfiguration: {e_check_style}")
-        # *********************************************************
 
-        debug_log(f"apply_custom_font_sizes (mit Button/Radio/Checkbutton Anpassung) erfolgreich durchlaufen.")
+        debug_log(f"apply_custom_font_sizes (mit Treeview/Button/Radio/Checkbutton Anpassungen) erfolgreich durchlaufen.")
 
     except Exception as e: 
         debug_log(f"Allgemeiner FEHLER in apply_custom_font_sizes: {e}")
@@ -183,18 +182,15 @@ def apply_custom_font_sizes(base_size):
 def load_language(lang_code='de', is_initial_load=False):
     global translations, current_language
     original_requested_lang = lang_code
-    # Fallback-Reihenfolge: angeforderte Sprache, dann Englisch, dann Deutsch
     fallback_order = [lang_code, 'en', 'de']
-    # Sicherstellen, dass jeder Code nur einmal vorkommt, Reihenfolge beibehalten
     seen = set()
     unique_fallback_order = [x for x in fallback_order if not (x in seen or seen.add(x))]
 
     loaded_successfully = False
-    loaded_lang_code = None # Die Sprache, die tatsächlich geladen wurde
+    loaded_lang_code = None
 
     for code_to_try in unique_fallback_order:
-        # lang_file = resource_path(f"{code_to_try}.json") # ALTE ZEILE
-        lang_file = get_lang_resource_path(f"{code_to_try}.json") # NEUE ZEILE
+        lang_file = get_lang_resource_path(f"{code_to_try}.json")
         debug_log(f"Versuche Sprachdatei zu laden: '{lang_file}' (für ursprünglich angefordertes '{original_requested_lang}')")
 
         if not os.path.exists(lang_file):
@@ -203,50 +199,43 @@ def load_language(lang_code='de', is_initial_load=False):
         try:
             with open(lang_file, 'r', encoding='utf-8') as f:
                 translations = json.load(f)
-            current_language = code_to_try # Globale Variable setzen
+            current_language = code_to_try
             loaded_lang_code = code_to_try
             debug_log(f"Sprachdatei '{lang_file}' erfolgreich geladen und als '{current_language}' gesetzt.")
             loaded_successfully = True
-            break  # Schleife bei erfolgreichem Laden verlassen
+            break
         except json.JSONDecodeError as e_json:
             debug_log(f"FEHLER: Sprachdatei '{lang_file}' ist fehlerhaft (JSONDecodeError): {e_json}")
-            # translations = {} # Optional: Bei Fehler leeren, um partielle Daten zu vermeiden
         except Exception as e:
             debug_log(f"FEHLER beim Laden/Verarbeiten der Sprachdatei '{lang_file}': {e}")
-            # translations = {}
 
     if not loaded_successfully:
         debug_log(f"WARNUNG: Keine Sprachdatei konnte für '{original_requested_lang}' oder definierte Fallbacks geladen werden. Setze auf 'de' (hartkodiert) und versuche, 'de.json' zu laden.")
-        translations = {}  # Sicherstellen, dass Übersetzungen leer sind
-        current_language = 'de' # Als letzten Ausweg auf Deutsch setzen
-        loaded_lang_code = 'de' # Anzeigen, dass Deutsch der aktive Code ist
+        translations = {}
+        current_language = 'de'
+        loaded_lang_code = 'de'
 
-        # Ein letzter Versuch, die deutsche Sprachdatei zu laden, wenn alles andere fehlschlug
         de_lang_file = resource_path("de.json")
         if os.path.exists(de_lang_file):
             try:
                 with open(de_lang_file, 'r', encoding='utf-8') as f_de:
                     translations = json.load(f_de)
                 debug_log("Fallback auf hartkodiertes 'de.json' erfolgreich geladen.")
-                # current_language ist bereits 'de'
             except Exception as e_de_final:
                 debug_log(f"FEHLER: Konnte selbst das hartkodierte 'de.json' nicht laden: {e_de_final}")
-                translations = {} # Übersetzungen bleiben definitiv leer
+                translations = {}
         else:
             debug_log("WARNUNG: Hartkodierte Fallback-Sprachdatei 'de.json' existiert nicht. Übersetzungen bleiben leer.")
 
-    # Benutzerfeedback nur geben, wenn es keine Erstladung ist und relevant
     if not is_initial_load:
         if loaded_successfully and loaded_lang_code != original_requested_lang:
-            # Versuche, die Warnmeldung mit den aktuell geladenen Übersetzungen anzuzeigen
-            # (kann den Schlüssel selbst anzeigen, wenn die Übersetzung für die Warnung fehlt)
-            if root and root.winfo_exists(): # Nur wenn GUI existiert
+            if root and root.winfo_exists():
                  messagebox.showwarning(
                     translate("Language load warning"),
                     translate("The selected language '{}' could not be loaded. Switched to '{}'.").format(original_requested_lang, loaded_lang_code),
                     parent=root
                 )
-        elif not loaded_successfully and original_requested_lang != 'de': # Wenn auch der Fallback auf 'de' nicht ging (ausser de war eh angefragt)
+        elif not loaded_successfully and original_requested_lang != 'de':
              if root and root.winfo_exists():
                 messagebox.showerror(
                     translate("Language load error"),
@@ -255,46 +244,44 @@ def load_language(lang_code='de', is_initial_load=False):
                 )
     return loaded_successfully
 
-def translate(key, *args):
-    # load_language ist nun allein für das Laden der Übersetzungen zuständig.
-    # Wenn translations hier leer ist, bedeutet das, dass alle Ladeversuche (inkl. Fallbacks) gescheitert sind.
-    translated = translations.get(key, key) # Fällt auf den Schlüssel selbst zurück, wenn nicht gefunden
+def translate(key, *args, **kwargs):
+    translated = translations.get(key, key)
     try:
-        return translated.format(*args) if args else translated
-    except KeyError: # Tritt auf, wenn der Schlüssel Formatierungsplatzhalter hat, aber nicht in translations gefunden wird
-        debug_log(f"FEHLER Formatieren (KeyError) Text '{key}'. Schlüssel nicht in Translations oder erfordert Formatierung, die nicht angewendet werden kann.")
-        return key # Rohen Schlüssel zurückgeben
-    except Exception as e: # Andere Formatierungsfehler (z.B. falsche Anzahl Argumente für einen gefundenen String)
+        if kwargs:
+            return translated.format(**kwargs)
+        elif args:
+            return translated.format(*args)
+        else:
+            return translated
+    except KeyError: 
+        debug_log(f"FEHLER Formatieren (KeyError) Text '{key}'. Platzhalter passen nicht oder Schlüssel falsch.")
+        return key 
+    except Exception as e: 
         debug_log(f"FEHLER Formatieren Text '{key}': {e} - Übersetzter Text war: '{translated}'")
-        return translated # Gib den (potenziell problematischen) übersetzten String zurück oder den Schlüssel
+        return translated
 
 # --- Windows Dark Mode Erkennung ---
 def check_windows_dark_mode():
-    if not CAN_CHECK_REGISTRY: # Diese globale Variable prüft, ob 'winreg' überhaupt importiert werden konnte
+    if not CAN_CHECK_REGISTRY:
         print("INFO: check_windows_dark_mode: Registry-Check nicht möglich (Modul 'winreg' nicht importiert). System-Theme wird als 'light' interpretiert.")
-        return False # Nimm 'light' an, wenn Registry nicht geprüft werden kann
+        return False
     try:
         key_path = r"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize"
-        # Öffne den Registry Key
         registry_key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, key_path, 0, winreg.KEY_READ)
-        # Lese den Wert 'AppsUseLightTheme'. Wenn dieser 0 ist, ist Dark Mode für Apps aktiv.
         value, regtype = winreg.QueryValueEx(registry_key, 'AppsUseLightTheme')
         winreg.CloseKey(registry_key)
         
-        is_dark = (value == 0) # value == 0 bedeutet AppsUseLightTheme ist AUS -> Dark Mode ist AN
-                               # value == 1 bedeutet AppsUseLightTheme ist AN  -> Light Mode ist AN
+        is_dark = (value == 0)
         
         print(f"INFO: check_windows_dark_mode: Windows Registry 'AppsUseLightTheme' Wert = {value}. System-Apps sind daher {'dunkel' if is_dark else 'hell'}.")
         return is_dark
     except FileNotFoundError:
-        # Dieser Fehler tritt auf, wenn der Schlüssel oder der Wert nicht existiert.
         print(f"INFO: check_windows_dark_mode: DarkMode Registry-Schlüssel '{key_path}' oder Wert 'AppsUseLightTheme' nicht gefunden. System-Theme wird als 'light' interpretiert.")
         return False
     except Exception as e:
         print(f"FEHLER: check_windows_dark_mode: Unerwarteter Fehler beim Lesen des DarkMode Registry-Wertes: {e}. System-Theme wird als 'light' interpretiert.")
         return False
 
-# Fix für ttk Treeview Style Bug mit Themes
 def _fixed_map(option):
     global style;
     if not style: print("WARNUNG: Style nicht initialisiert in _fixed_map"); return []
@@ -324,50 +311,94 @@ def create_default_ini():
 # --- Lädt Settings und Programme ---
 def load_settings_and_programs():
     global config, program_list, check_cycle_sec, start_delay_sec, program_count
-    global current_language, current_theme_setting # Stelle sicher, dass diese hier bekannt sind, gelesen werden sie initial woanders
+    global current_language, current_theme_setting
     global check_cycle_var_sec, start_delay_var_sec, tree_programs, language_var, theme_preference_var
 
-    debug_log(f"Befülle GUI mit Werten aus Config-Objekt und lade Programmliste...")
-    program_list = []; program_count = 0
+    debug_log(f"Lade Einstellungen und Programmliste (Sprache: {current_language}, Theme-Präf.: {current_theme_setting}).")
+    program_list = []
+    program_count = 0
 
     if tree_programs:
-         try: [tree_programs.delete(item) for item in tree_programs.get_children()]
-         except Exception as e: debug_log(f"Fehler Leeren Treeview: {e}")
+        try:
+            for item in tree_programs.get_children():
+                tree_programs.delete(item)
+        except Exception as e:
+            debug_log(f"Fehler beim Leeren des Treeview: {e}")
+    
     try:
         check_cycle_sec = config.getint('Settings', 'CheckCycleSec', fallback=DEFAULT_CHECK_CYCLE_SEC)
         start_delay_sec = config.getint('Settings', 'StartDelaySec', fallback=DEFAULT_START_DELAY_SEC)
-        # Sprache und Theme werden jetzt initial woanders geladen und von on_language_changed / on_theme_preference_changed gehandhabt
-        # current_language = config.get('Settings', 'Language', fallback='de') # Nicht mehr hier lesen
-        # current_theme_setting = config.get('Settings', 'ThemePreference', fallback='system').lower() # Nicht mehr hier lesen
+        
+        if check_cycle_sec < 1: 
+            check_cycle_sec = 1
+            debug_log(f"CheckCycleSec war < 1, wurde auf 1 korrigiert.")
+        if start_delay_sec < 0:
+            start_delay_sec = 0
+            debug_log(f"StartDelaySec war < 0, wurde auf 0 korrigiert.")
 
-        if check_cycle_sec < 1: check_cycle_sec = 1
-        if start_delay_sec < 0: start_delay_sec = 0
-    except Exception as e: debug_log(f"FEHLER Verarbeiten [Settings] aus config: {e}. Verwende Defaults."); check_cycle_sec = DEFAULT_CHECK_CYCLE_SEC; start_delay_sec = DEFAULT_START_DELAY_SEC
-
-    debug_log(f"Settings für GUI: Cycle={check_cycle_sec}s, Delay={start_delay_sec}s, Lang={current_language}, ThemePref='{current_theme_setting}'")
+    except Exception as e:
+        debug_log(f"FEHLER beim Verarbeiten von [Settings] aus config: {e}. Verwende Standardwerte.")
+        check_cycle_sec = DEFAULT_CHECK_CYCLE_SEC
+        start_delay_sec = DEFAULT_START_DELAY_SEC
+        debug_log(f"GUI-Settings übernommen: Prüfzyklus={check_cycle_sec}s, Startverzögerung={start_delay_sec}s")
     if check_cycle_var_sec: check_cycle_var_sec.set(str(check_cycle_sec))
     if start_delay_var_sec: start_delay_var_sec.set(str(start_delay_sec))
-    if language_var: # Wird durch on_language_changed und initial load gesetzt
+    
+    if language_var:
         display_name_lang = next((name for name, code in supported_languages.items() if code == current_language), "Deutsch")
         language_var.set(display_name_lang)
-    if theme_preference_var: theme_preference_var.set(current_theme_setting)
+    if theme_preference_var: 
+        theme_preference_var.set(current_theme_setting)
 
     prog_sections = [s for s in config.sections() if s.lower().startswith('program')]
-    def get_prog_num(section_name): num_part = section_name[7:]; return int(num_part) if num_part.isdigit() else 9999
-    try: prog_sections.sort(key=get_prog_num)
-    except ValueError: debug_log("Warnung: Konnte Sektionen nicht sortieren.")
+    
+    def get_prog_num(section_name):
+        num_part = section_name[7:]
+        return int(num_part) if num_part.isdigit() else 9999
+
+    try:
+        prog_sections.sort(key=get_prog_num)
+    except ValueError:
+        debug_log("WARNUNG: Konnte Programm-Sektionen nicht numerisch sortieren.")
+
     for section_name in prog_sections:
         try:
-            name = config.get(section_name, 'Name', fallback='').strip(); path = config.get(section_name, 'Path', fallback='').strip(); enabled = config.getboolean(section_name, 'Enabled', fallback=False)
+            name = config.get(section_name, 'Name', fallback='').strip()
+            path = config.get(section_name, 'Path', fallback='').strip()
+            enabled = config.getboolean(section_name, 'Enabled', fallback=False) 
+            
             if name and path:
-                program_list.append({'name': name, 'path': path, 'enabled': enabled, 'section': section_name}); program_count += 1
-                if tree_programs: values = (program_count, name, path, str(enabled)); tree_programs.insert("", tk.END, iid=section_name, values=values, tags=('disabled_row',) if not enabled else ())
-        except Exception as e: debug_log(f"FEHLER Lesen Sektion {section_name}: {e}")
+                program_list.append({'name': name, 'path': path, 'enabled': enabled, 'section': section_name})
+                program_count += 1
+                
+                if tree_programs:
+                    enabled_key_string = str(enabled) 
+                    translated_enabled_string = translate(enabled_key_string) 
+                    
+                    values = (program_count, name, path, translated_enabled_string)
+                    
+                    tree_programs.insert("", tk.END, iid=section_name, values=values, tags=('disabled_row',) if not enabled else ())
+            else:
+                debug_log(f"WARNUNG: Ungültiger oder unvollständiger Eintrag in Sektion {section_name} übersprungen (Name oder Pfad fehlt).")
+        except Exception as e:
+            debug_log(f"FEHLER beim Lesen der Sektion {section_name}: {e}")
+    
     if tree_programs:
-        try: tree_programs.tag_configure('disabled_row', foreground='gray')
-        except Exception as e: debug_log(f"Fehler Konfig Treeview-Tag: {e}")
-    debug_log(f"Programmliste Ladevorgang abgeschlossen. {program_count} Programme.");
-    if root and root.winfo_exists(): root.after(50, _update_action_buttons_state)
+        try:
+            current_theme_for_disabled_row = sv_ttk.get_theme() if 'sv_ttk' in sys.modules else "light"
+            disabled_fg_color = "gray"
+            if current_theme_for_disabled_row == "dark":
+                disabled_fg_color = "#A0A0A0"
+            tree_programs.tag_configure('disabled_row', foreground=disabled_fg_color)
+        except Exception as e:
+            debug_log(f"Fehler bei der Konfiguration des Treeview-Tags 'disabled_row': {e}")
+            
+    update_status_message("Status.ProgramListLoadedCount", program_count)
+    debug_log(f"Programmliste Ladevorgang abgeschlossen. {program_count} Programme gefunden und geladen.")
+    
+    if root and root.winfo_exists():
+        root.after(50, _update_action_buttons_state)
+        
     return True
 
 # --- Speichert Settings ---
@@ -384,8 +415,8 @@ def save_settings_from_gui():
         debug_log(f"Aktualisiere Settings in Config: CycleSec={check_cycle_sec}, DelaySec={start_delay_sec}, Lang={current_language}, ThemePref={current_theme_setting}")
         if not config.has_section('Settings'): config.add_section('Settings')
         config['Settings']['CheckCycleSec'] = str(check_cycle_sec); config['Settings']['StartDelaySec'] = str(start_delay_sec)
-        config['Settings']['Language'] = current_language # current_language wird von on_language_changed aktualisiert
-        config['Settings']['ThemePreference'] = current_theme_setting # current_theme_setting von on_theme_preference_changed
+        config['Settings']['Language'] = current_language
+        config['Settings']['ThemePreference'] = current_theme_setting
 
         if save_config_to_file(): messagebox.showinfo(translate("Saved"), translate("Settings have been saved."), parent=root)
     except ValueError: messagebox.showerror(translate("Error"), translate("Invalid number in settings."), parent=root)
@@ -435,10 +466,17 @@ def watchdog_loop(stop_event_thread):
             if not current_program_list_for_cycle: last_check_completion_time = now
             elif last_check_completion_time == 0.0: last_check_completion_time = now
             if (now - last_check_completion_time) >= local_check_cycle_sec:
-                current_program_list_for_cycle = program_list[:] # Programmliste für diesen Zyklus neu laden
+                current_program_list_for_cycle = program_list[:]
                 current_list_len = len(current_program_list_for_cycle)
-                if current_list_len > 0: debug_log("Watchdog: Zyklus beginnt..."); current_program_index = 0; watchdog_state = STATE_CHECKING; process_next_state_immediately = True
-                else: debug_log("Watchdog: Zyklus, keine Programme. Warte."); last_check_completion_time = now
+                if current_list_len > 0:
+                    update_status_message("Status.WatchdogCycleStarts")
+                    debug_log("Watchdog: Zyklus beginnt...");
+                    current_program_index = 0;
+                    watchdog_state = STATE_CHECKING;
+                    process_next_state_immediately = True
+                else:
+                    debug_log("Watchdog: Zyklus, keine Programme. Warte.");
+                last_check_completion_time = now
         elif watchdog_state == STATE_CHECKING:
             process_next_state_immediately = True
             if current_program_index >= current_list_len: debug_log("Watchdog: Zyklus abgeschlossen."); last_check_completion_time = now; watchdog_state = STATE_WAIT_CHECK; process_next_state_immediately = False
@@ -447,9 +485,17 @@ def watchdog_loop(stop_event_thread):
                 if not program['enabled']: current_program_index += 1
                 elif is_process_running(program['name']): current_program_index += 1
                 else:
+                    update_status_message("Status.WatchdogProcessStarting", name=program['name'])
                     debug_log(f"Watchdog: Prozess '{program['name']}' läuft nicht -> Starte...")
-                    if start_program(program['path']): debug_log(f"... Warte {local_start_delay_sec:.1f}s."); last_program_start_time = now; watchdog_state = STATE_WAIT_DELAY; process_next_state_immediately = False
-                    else: debug_log(f"... FEHLER Start '{program['name']}'."); current_program_index += 1
+                    if start_program(program['path']):
+                        update_status_message("Status.WatchdogWaitingAfterStart", delay=f"{local_start_delay_sec:.1f}", name=program['name'])
+                        debug_log(f"... Warte {local_start_delay_sec:.1f}s.");
+                        last_program_start_time = now;
+                        watchdog_state = STATE_WAIT_DELAY;
+                        process_next_state_immediately = False
+                    else:
+                        debug_log(f"... FEHLER Start '{program['name']}'.");
+                    current_program_index += 1
                 if current_program_index >= current_list_len and watchdog_state == STATE_CHECKING: debug_log("Watchdog: Zyklus beendet (nach Check/Skip)."); last_check_completion_time = now; watchdog_state = STATE_WAIT_CHECK; process_next_state_immediately = False
         elif watchdog_state == STATE_WAIT_DELAY:
             process_next_state_immediately = True
@@ -457,7 +503,10 @@ def watchdog_loop(stop_event_thread):
             if elapsed_since_start >= local_start_delay_sec:
                  program_name_delayed = "?";
                  if current_program_index < current_list_len: program_name_delayed = current_program_list_for_cycle[current_program_index]['name']
-                 debug_log(f"Watchdog: Startverzögerung '{program_name_delayed}' beendet."); current_program_index += 1; watchdog_state = STATE_CHECKING
+                 update_status_message("Status.WatchdogDelayEndedFor {}", program_name_delayed)
+                 debug_log(f"Watchdog: Startverzögerung '{program_name_delayed}' beendet.");
+                 current_program_index += 1;
+                 watchdog_state = STATE_CHECKING
                  if current_program_index >= current_list_len: debug_log("Watchdog: Zyklus beendet (nach letztem Delay)."); last_check_completion_time = now; watchdog_state = STATE_WAIT_CHECK; process_next_state_immediately = False
             else: process_next_state_immediately = False
         if not process_next_state_immediately:
@@ -468,15 +517,24 @@ def watchdog_loop(stop_event_thread):
             if stopped: break
         elif stop_event_thread.is_set(): break
     debug_log("Watchdog-Thread: Schleife beendet.");
-    if root and root.winfo_exists(): root.after(0, update_watchdog_buttons)
+    try:
+        if root and root.winfo_exists():
+            root.after(0, update_watchdog_buttons)
+    except tk.TclError:
+        debug_log("Watchdog-Thread: TclError beim Versuch, update_watchdog_buttons via root.after zu planen (wahrscheinlich wird gerade beendet).")
+    except RuntimeError as e_runtime:
+        if "main thread is not in main loop" in str(e_runtime):
+            debug_log("Watchdog-Thread: RuntimeError (main thread not in main loop) beim Versuch, update_watchdog_buttons via root.after zu planen.")
+        else:
+            debug_log(f"Watchdog-Thread: Unerwarteter RuntimeError: {e_runtime}")
+    except Exception as e_after:
+        debug_log(f"Watchdog-Thread: Allgemeiner Fehler beim Versuch, update_watchdog_buttons via root.after zu planen: {e_after}")
 
 # --- GUI Erstellung ---
 def create_gui_widgets():
-    # help_font aus der global-Deklaration entfernt, da es nicht mehr als separate Variable benötigt wird.
-    # Der Font für die Hilfe-Labels wird jetzt über den Style "Help.TLabel" in apply_custom_font_sizes definiert.
     global root, check_cycle_var_sec, start_delay_var_sec, btnSaveConfig, tree_programs
     global inpProgPathAdd, chkEnabledVar, chkEnabledAdd, btnBrowseAdd, btnAddProg, btnRemoveProg
-    global btnEditProg, btnStartWatchdog, btnStopWatchdog, btnExitApp, status_bar_text, style # help_font entfernt
+    global btnEditProg, btnStartWatchdog, btnStopWatchdog, btnExitApp, status_bar_text, style
     global lblCheckCycle, lblStartDelay, lblLanguage, lblPathAdd, lblTheme, theme_frame, language_combo
     global r_system, r_light, r_dark, theme_preference_var, settings_frame, programs_frame, add_frame, language_var
     global BASE_FONT_SIZE 
@@ -484,21 +542,6 @@ def create_gui_widgets():
     root.title(translate("Watchdog"));
     root.geometry("550x580")
     root.resizable(False, False)
-    
-    # --- BLOCK ENTFERNT ---
-    # Die folgende try-except-Block zur Erstellung von 'help_font' wurde entfernt,
-    # da die "(?)"-Labels jetzt den Style "Help.TLabel" verwenden, der in
-    # apply_custom_font_sizes (inkl. Font und Farbe) konfiguriert wird.
-    # try:
-    #     help_font_family = "Calibri" 
-    #     if sys.platform == "darwin": help_font_family = "Helvetica Neue"
-    #     elif sys.platform.startswith("linux"): help_font_family = "DejaVu Sans"
-    #     help_font = tkFont.Font(family=help_font_family, size=max(7, BASE_FONT_SIZE - 1))
-    #     debug_log(f"Help-Font erstellt: Family='{help_font_family}', Size={max(7, BASE_FONT_SIZE - 1)}")
-    # except Exception as e:
-    #     debug_log(f"Fehler beim Erstellen des Help-Fonts: {e}. Verwende generischen Fallback.")
-    #     help_font = tkFont.Font(size=max(7, BASE_FONT_SIZE - 1))
-    # --- ENDE BLOCK ENTFERNT ---
         
     check_cycle_var_sec = tk.StringVar(root); start_delay_var_sec = tk.StringVar(root)
     chkEnabledVar = tk.BooleanVar(root, value=True); status_bar_text = tk.StringVar(root, value=translate("Ready."))
@@ -512,22 +555,22 @@ def create_gui_widgets():
     
     lblCheckCycle = ttk.Label(settings_frame, text=translate("Check cycle (s):"));
     lblCheckCycle.grid(row=0, column=0, padx=(5,0), pady=2, sticky="w");
-    # Verwendet jetzt den Style "Help.TLabel" (konfiguriert in apply_custom_font_sizes)
+    
     cycle_help = ttk.Label(settings_frame, text="(?)", cursor="question_arrow", style="Help.TLabel") 
     cycle_help.grid(row=0, column=1, padx=(0,5), pady=2, sticky="w")
     cycle_help.bind("<Button-1>", lambda e: show_help_cycle())
     
-    cycle_entry = ttk.Entry(settings_frame, textvariable=check_cycle_var_sec, width=8); # Breite ggf. anpassen
+    cycle_entry = ttk.Entry(settings_frame, textvariable=check_cycle_var_sec, width=8);
     cycle_entry.grid(row=0, column=2, padx=5, pady=2, sticky="w")
     
     lblStartDelay = ttk.Label(settings_frame, text=translate("Start delay (s):"));
     lblStartDelay.grid(row=1, column=0, padx=(5,0), pady=2, sticky="w");
-    # Verwendet jetzt den Style "Help.TLabel"
+    
     delay_help = ttk.Label(settings_frame, text="(?)", cursor="question_arrow", style="Help.TLabel") 
     delay_help.grid(row=1, column=1, padx=(0,5), pady=2, sticky="w")
     delay_help.bind("<Button-1>", lambda e: show_help_delay())
     
-    delay_entry = ttk.Entry(settings_frame, textvariable=start_delay_var_sec, width=8); # Breite ggf. anpassen
+    delay_entry = ttk.Entry(settings_frame, textvariable=start_delay_var_sec, width=8);
     delay_entry.grid(row=1, column=2, padx=5, pady=2, sticky="w")
     
     lblLanguage = ttk.Label(settings_frame, text=translate("Language:"));
@@ -579,7 +622,7 @@ def create_gui_widgets():
     
     lblPathAdd = ttk.Label(add_frame, text=translate("Path:"));
     lblPathAdd.grid(row=0, column=0, padx=(5,0), pady=2, sticky="w");
-    # Verwendet jetzt den Style "Help.TLabel"
+    
     path_add_help = ttk.Label(add_frame, text="(?)", cursor="question_arrow", style="Help.TLabel") 
     path_add_help.grid(row=0, column=1, padx=(0,5), pady=2, sticky="w")
     path_add_help.bind("<Button-1>", lambda e: show_help_path_add())
@@ -595,7 +638,7 @@ def create_gui_widgets():
 
     bottom_frame = ttk.Frame(root, padding="10"); bottom_frame.grid(row=4, column=0, padx=10, pady=5, sticky="ew"); bottom_frame.columnconfigure(1, weight=1)
     edit_remove_frame = ttk.Frame(bottom_frame); edit_remove_frame.grid(row=0, column=0, sticky="w")
-    # Texte für Edit/Remove Buttons angepasst für mehr Klarheit, was sie tun
+    
     btnEditProg = ttk.Button(edit_remove_frame, text=translate("Edit selected"), command=on_edit_button_click, state=tk.DISABLED); btnEditProg.pack(side=tk.TOP, anchor="w", pady=(0, 2))
     btnRemoveProg = ttk.Button(edit_remove_frame, text=translate("Remove selected"), command=on_remove_button_click, state=tk.DISABLED); btnRemoveProg.pack(side=tk.TOP, anchor="w")
     
@@ -666,12 +709,11 @@ def on_remove_button_click():
 def on_edit_button_click(event=None):
     debug_log(">>> Event: OnEditButtonClick"); selected_items = tree_programs.selection()
     if not selected_items or len(selected_items) > 1:
-        if event: # Aufruf durch Doppelklick
+        if event:
             focused_item = tree_programs.focus()
             if focused_item:
-                selected_items = (focused_item,); tree_programs.selection_set(focused_item) # Auswahl setzen für Konsistenz
+                selected_items = (focused_item,); tree_programs.selection_set(focused_item)
             else: 
-                # Verwende die korrekten Übersetzungsschlüssel für die Fehlermeldung, falls unterschiedlich
                 messagebox.showwarning(translate("Selection Error"), translate("Please select exactly one program to edit."), parent=root)
                 return
         else: 
@@ -679,18 +721,15 @@ def on_edit_button_click(event=None):
             return 
     selected_iid = selected_items[0]; debug_log(f"Bearbeite: {selected_iid}")
     
-    # Haupt-Try-Block für den gesamten Dialogaufbau und -ablauf
     try:
         current_name = config.get(selected_iid, 'Name', fallback=""); current_path = config.get(selected_iid, 'Path', fallback=""); current_enabled = config.getboolean(selected_iid, 'Enabled', fallback=False)
         
         edit_window = tk.Toplevel(root)
-        edit_window.title(translate("Edit: {}").format(current_name)) # Titel zuerst setzen
+        edit_window.title(translate("Edit: {}").format(current_name))
 
-        # --- Icon für das Bearbeiten-Fenster setzen (HIER EINFÜGEN) ---
         try:
-            # icon_path_edit = resource_path('watchdog.ico') # ALTE ZEILE 
             icon_filename_edit = 'watchdog.ico'
-            icon_path_edit = get_icon_resource_path(icon_filename_edit) # NEUE ZEILE
+            icon_path_edit = get_icon_resource_path(icon_filename_edit)
             if os.path.exists(icon_path_edit):
                 edit_window.iconbitmap(icon_path_edit)
                 debug_log(f"Icon für Bearbeiten-Fenster ({current_name}) gesetzt.")
@@ -698,13 +737,11 @@ def on_edit_button_click(event=None):
                 debug_log(f"WARNUNG: Icon-Datei für Bearbeiten-Fenster nicht gefunden: {icon_path_edit}")
         except Exception as e_icon_edit:
             debug_log(f"Fehler beim Setzen des Icons für Bearbeiten-Fenster: {e_icon_edit}")
-        # --- Ende Icon setzen ---
-
+        
         edit_window.resizable(False, False)
         edit_window.transient(root)
-        edit_window.grab_set() # Muss nach transient(root) und iconbitmap erfolgen, falls Fehler auftreten und das Fenster nicht korrekt modal wird.
-                              # Besser ist es oft, grab_set erst kurz vor wait_window() zu setzen, falls der Dialogaufbau fehlschlägt.
-
+        edit_window.grab_set()
+        
         path_var_edit = tk.StringVar(edit_window, value=current_path)
         enabled_var_edit = tk.BooleanVar(edit_window, value=current_enabled)
         
@@ -717,20 +754,19 @@ def on_edit_button_click(event=None):
         name_display_label.grid(row=0, column=1, columnspan=2, padx=5, pady=5, sticky="ew")
         
         ttk.Label(dialog_frame, text=translate("Path:")).grid(row=1, column=0, padx=5, pady=5, sticky="w")
-        # Hier wird path_entry korrekt definiert:
+        
         path_entry = ttk.Entry(dialog_frame, textvariable=path_var_edit, width=40)
         path_entry.grid(row=1, column=1, padx=5, pady=5, sticky="ew")
         
         def _browse_edit_path():
-            edit_window.grab_release() # Fokus vom Edit-Fenster nehmen für den Filedialog
+            edit_window.grab_release()
             sFilePath = filedialog.askopenfilename( 
-                title=translate("Select Program"), # Korrigierter Schlüssel "Select Program"
+                title=translate("Select Program"),
                 initialdir=os.path.dirname(path_var_edit.get()) if path_var_edit.get() else application_path, 
-                filetypes=[(translate("Executable Files"), "*.exe"), (translate("All Files"), "*.*")], # Schlüssel "Executable Files", "All Files"
+                filetypes=[(translate("Executable Files"), "*.exe"), (translate("All Files"), "*.*")],
                 parent=edit_window 
             )
-            edit_window.grab_set() # Fokus zurück zum Edit-Fenster
-            # edit_window.focus_force() # Kann helfen, den Fokus sicher zurückzugeben
+            edit_window.grab_set()
             if sFilePath: 
                 path_var_edit.set(os.path.normpath(sFilePath))
         
@@ -768,7 +804,7 @@ def on_edit_button_click(event=None):
                 if save_config_to_file(): 
                     debug_log(f"INI nach Edit von {selected_iid} gespeichert.")
                     load_settings_and_programs()
-                    edit_window.destroy() # Dialog schließen
+                    edit_window.destroy()
             except Exception as e_save: 
                 debug_log(f"FEHLER Speichern nach Edit: {e_save}")
                 messagebox.showerror(translate("Error"), translate("Error saving changes:").format(f"\n{e_save}"), parent=edit_window)
@@ -779,12 +815,9 @@ def on_edit_button_click(event=None):
         cancel_button = ttk.Button(button_frame, text=translate("Cancel"), command=edit_window.destroy)
         cancel_button.pack(side=tk.LEFT, padx=10)
         
-        path_entry.focus_set() # Jetzt ist path_entry sicher definiert
+        path_entry.focus_set()
         
-        # edit_window.grab_set() # grab_set besser hier, kurz bevor der Dialog blockiert, um sicherzustellen, dass der Dialog den Fokus hat
-                               # und nach allen Widget-Erstellungen. Ist aber oben schon, das ist ok.
-        
-        edit_window.wait_window() # Blockiert bis der Dialog geschlossen wird.
+        edit_window.wait_window()
         
     except Exception as e_dialog: 
         debug_log(f"FEHLER im Edit-Dialog (Haupt-Try-Block): {e_dialog}")
@@ -796,7 +829,7 @@ def on_edit_button_click(event=None):
 def on_start_watchdog_click():
     global is_running, watchdog_thread, stop_event; debug_log(">>> Event: OnStartWatchdogClick")
     if not is_running:
-        load_settings_and_programs(); # Sicherstellen, dass aktuelle Einstellungen geladen sind
+        load_settings_and_programs();
         if not program_list: messagebox.showwarning(translate("No programs"), translate("No programs configured."), parent=root); return
         is_running = True; stop_event = threading.Event(); debug_log("Erstelle/starte Watchdog-Thread...")
         watchdog_thread = threading.Thread(target=watchdog_loop, args=(stop_event,), daemon=True)
@@ -811,8 +844,8 @@ def on_stop_watchdog_click():
         debug_log("Sende Stop-Signal...")
         if stop_event:
             stop_event.set()
-        is_running = False # Sofort als nicht laufend markieren
-        update_watchdog_buttons() # Buttons sofort aktualisieren
+        is_running = False
+        update_watchdog_buttons()
         status_bar_text.set(translate("Watchdog stopping..."))
         if root and root.winfo_exists():
             root.after(100, _check_thread_stopped)
@@ -820,32 +853,26 @@ def on_stop_watchdog_click():
         debug_log("Watchdog war bereits gestoppt.")
 
 def _check_thread_stopped():
-    global is_running, watchdog_thread # is_running wird hier nur gelesen
+    global is_running, watchdog_thread
     if watchdog_thread and watchdog_thread.is_alive():
         debug_log("Thread läuft noch, warte...")
         if root and root.winfo_exists():
             root.after(500, _check_thread_stopped)
     else:
-        # Status nur final setzen, wenn der Stop-Button ihn auf "stoppt..." gesetzt hat
-        # UND is_running (global) tatsächlich False ist (als Bestätigung des Stopp-Vorgangs)
         if not is_running and status_bar_text and status_bar_text.get() == translate("Watchdog stopping..."):
             debug_log("Thread beendet (durch Stop-Befehl).")
             watchdog_thread = None
             if status_bar_text: status_bar_text.set(translate("Watchdog stopped."))
             debug_log("Watchdog Gestoppt (Inaktiv).")
-            # update_watchdog_buttons() sollte bereits durch on_stop_watchdog_click erfolgt sein
-        elif is_running: # Sollte nicht passieren, wenn on_stop_watchdog_click korrekt is_running gesetzt hat
+        elif is_running:
             debug_log("WARNUNG: _check_thread_stopped fand Thread beendet, aber is_running ist noch True.")
-            # is_running = False # Korrektur
-            # update_watchdog_buttons()
-            # if status_bar_text: status_bar_text.set(translate("Watchdog stopped (forced)."))
 
-def update_watchdog_buttons_on_stop(): # Wird vom Watchdog-Thread aufgerufen, wenn er sich selbst beendet (z.B. keine Programme)
+def update_watchdog_buttons_on_stop():
     global is_running, watchdog_thread; debug_log("Watchdog-Thread hat sich selbst beendet.");
-    if is_running: # Nur wenn er unerwartet gestoppt hat, während GUI ihn als laufend ansah
+    if is_running:
         is_running = False; watchdog_thread = None;
         if status_bar_text: status_bar_text.set(translate("Watchdog stopped."))
-        update_watchdog_buttons() # Buttons aktualisieren
+        update_watchdog_buttons()
 
 def update_watchdog_buttons():
      if not root or not btnStartWatchdog or not btnStopWatchdog: return
@@ -859,31 +886,23 @@ def update_watchdog_buttons():
 def on_exit_button_click():
     debug_log(">>> Event: Exit Button Click / Window Close")
     
-    # Zuerst dem Watchdog-Thread signalisieren zu stoppen, falls er läuft.
-    # Das eigentliche Warten (join) passiert später, nachdem mainloop beendet ist.
-    global is_running # Sicherstellen, dass wir die globale Variable meinen
+    global is_running
     if is_running and stop_event:
         debug_log("Sende Stop-Signal an Watchdog-Thread...")
         stop_event.set()
-        # is_running wird False, wenn der Thread tatsächlich stoppt oder der Stopp-Button gedrückt wird.
-        # Hier setzen wir es noch nicht False, das passiert in on_stop_watchdog_click oder _check_thread_stopped.
 
     if root:
         try:
             debug_log("Versuche, root.quit() aufzurufen, um mainloop zu beenden.")
-            root.quit()  # Beendet die mainloop und lässt den Code danach weiterlaufen
-            # root.destroy() wird später im finally-Block von __main__ aufgerufen
+            root.quit()
         except Exception as e:
             debug_log(f"Fehler bei root.quit(): {e}")
-
-# WM_CLOSE_HANDLER bleibt gleich und ruft on_exit_button_click auf
-# def WM_CLOSE_HANDLER(): on_exit_button_click()
 
 def WM_CLOSE_HANDLER(): on_exit_button_click()
 
 # --- Event Handler für Sprach- und Theme-Auswahl ---
 def on_language_changed(event=None):
-    global current_language, config, language_var # Sicherstellen, dass language_var hier bekannt ist
+    global current_language, config, language_var 
     if not language_var:
         debug_log("FEHLER: language_var nicht initialisiert in on_language_changed.")
         return
@@ -891,50 +910,31 @@ def on_language_changed(event=None):
     selected_display_name = language_var.get()
     new_lang_code = supported_languages.get(selected_display_name, None)
 
-    # Vergleiche mit der globalen current_language, die den tatsächlich aktiven Sprachcode hält
     if new_lang_code and new_lang_code != current_language:
         debug_log(f"Sprachwechsel angefordert von '{current_language}' zu: {selected_display_name} (Code: {new_lang_code})")
-        previous_language_for_config = current_language # Merken für den Fall, dass Speichern fehlschlägt
+        previous_language_for_config = current_language 
 
-        load_language(new_lang_code, is_initial_load=False) # is_initial_load=False, da Benutzerinteraktion
-        # current_language wird innerhalb von load_language auf den tatsächlich geladenen Code gesetzt (kann Fallback sein)
-
+        load_language(new_lang_code, is_initial_load=False) 
         debug_log(f"Sprache nach load_language Versuch: '{current_language}' (ursprünglich angefordert: '{new_lang_code}')")
 
-        # Speichere die *tatsächlich aktive* Sprache in der Konfiguration
-        # und aktualisiere die GUI nur, wenn sich die Sprache wirklich geändert hat.
-        # Dies verhindert unnötige GUI-Updates, wenn z.B. Englisch gewählt wird,
-        # en.json fehlschlägt, auf Deutsch zurückgefallen wird (was schon aktiv war).
-        if current_language != previous_language_for_config: # Nur wenn sich die Sprache wirklich geändert hat
+        if current_language != previous_language_for_config: 
             try:
                 if not config.has_section('Settings'): config.add_section('Settings')
-                config.set('Settings', 'Language', current_language) # Speichere die *effektiv geladene* Sprache
+                config.set('Settings', 'Language', current_language) 
                 if save_config_to_file():
                     debug_log(f"Spracheinstellung '{current_language}' erfolgreich gespeichert.")
                 else:
-                    # Rollback der globalen current_language Variable, wenn Speichern fehlschlägt?
-                    # Eher nicht, da die Übersetzungen ja schon für current_language geladen sind.
-                    # Der Benutzer bekommt aber eine Fehlermeldung vom Speichern.
                     debug_log(f"FEHLER beim Speichern der Spracheinstellung '{current_language}' in der INI-Datei.")
             except Exception as e:
                 debug_log(f"FEHLER beim Versuch, Spracheinstellung in Config zu schreiben: {e}")
             
-            update_gui_language() # GUI mit der (potenziell Fallback-)Sprache aktualisieren
-            # Combobox-Anzeige auf die tatsächlich aktive Sprache aktualisieren, falls Fallback erfolgt ist
+            update_gui_language()
+            debug_log("Lade Programmliste neu, um Inhalte (z.B. True/False) zu übersetzen...")
+            load_settings_and_programs()
             display_name_loaded = next((name for name, code in supported_languages.items() if code == current_language), None)
             if display_name_loaded and language_var.get() != display_name_loaded:
                 debug_log(f"Korrigiere Combobox-Anzeige auf: {display_name_loaded}")
                 language_var.set(display_name_loaded)
-        else:
-             debug_log(f"Sprache wurde nicht geändert (blieb '{current_language}'). GUI-Update und Speichern übersprungen.")
-             # Wenn die Auswahl des Benutzers (new_lang_code) nicht der current_language entspricht (wegen Fallback),
-             # aber current_language sich nicht von previous_language_for_config unterscheidet,
-             # dann wurde die Combobox vielleicht nicht zurückgesetzt.
-             display_name_should_be = next((name for name, code in supported_languages.items() if code == current_language), None)
-             if display_name_should_be and language_var.get() != display_name_should_be:
-                 debug_log(f"Combobox-Anzeige ({language_var.get()}) stimmte nicht mit aktiver Sprache ({current_language}) überein. Korrigiere auf {display_name_should_be}.")
-                 language_var.set(display_name_should_be)
-
 
     elif new_lang_code and new_lang_code == current_language:
         debug_log(f"Ausgewählte Sprache '{new_lang_code}' ('{selected_display_name}') ist bereits aktiv. Keine Aktion.")
@@ -942,48 +942,34 @@ def on_language_changed(event=None):
         debug_log(f"FEHLER: Konnte keinen gültigen Sprachcode für '{selected_display_name}' finden.")
 
 def on_theme_preference_changed():
-    global current_theme_setting, root, style, tree_programs, config, BASE_FONT_SIZE # BASE_FONT_SIZE hier bekannt machen oder übergeben
+    global current_theme_setting, root, style, tree_programs, config, BASE_FONT_SIZE
 
     if not theme_preference_var: return 
     new_pref = theme_preference_var.get()
     debug_log(f"Theme-Präferenz geändert zu: {new_pref}")
 
-    # actual_theme_to_set bestimmen (basierend auf new_pref und ggf. check_windows_dark_mode)
-    # Diese Logik sollte schon korrekt sein, da der Start jetzt funktioniert.
-    _actual_theme_to_set = "light" # Default
+    _actual_theme_to_set = "light"
     if new_pref == "system":
         if check_windows_dark_mode():
             _actual_theme_to_set = "dark"
     elif new_pref == "dark":
         _actual_theme_to_set = "dark"
-    # else new_pref == "light", _actual_theme_to_set bleibt "light"
-
-    # Nur fortfahren, wenn sich das anzuwendende Theme tatsächlich ändert ODER
-    # wenn die Präferenz sich ändert (um die Präferenz auch zu speichern, wenn das Theme visuell gleich bleibt)
-    # ODER wenn "System" gewählt wurde und sich das OS-Theme geändert haben könnte.
-
-    # Herausfinden, welches Theme gerade via sv_ttk aktiv ist (falls sv_ttk eine get_theme Funktion hat)
-    # Für dieses Beispiel nehmen wir an, wir müssen es immer neu setzen, wenn die Präferenz wechselt
-    # oder wenn bei "System" eine potentielle Änderung vorliegt.
-
     theme_changed_visually_or_preference_changed = False
 
     if new_pref != current_theme_setting:
         theme_changed_visually_or_preference_changed = True
     elif new_pref == "system":
-        # Prüfen, ob das aktuell von sv_ttk genutzte Theme dem OS-Theme entspricht
-        # Dies ist eine vereinfachte Annahme, dass sv_ttk.get_theme() existiert
         try:
-            current_applied_svttk_theme = sv_ttk.get_theme() # Versuche aktuelles Theme zu bekommen
+            current_applied_svttk_theme = sv_ttk.get_theme()
             os_theme_is_dark = check_windows_dark_mode()
             expected_theme_for_system = "dark" if os_theme_is_dark else "light"
             if current_applied_svttk_theme != expected_theme_for_system:
                 debug_log(f"System-Theme-Anpassung: OS-Theme ist {expected_theme_for_system}, sv_ttk ist {current_applied_svttk_theme}. Korrektur nötig.")
-                theme_changed_visually_or_preference_changed = True # Erzwinge Neusetzung
-        except AttributeError: # Falls sv_ttk.get_theme() nicht existiert
+                theme_changed_visually_or_preference_changed = True
+        except AttributeError:
             debug_log("WARNUNG: sv_ttk.get_theme() nicht verfügbar, Theme wird basierend auf Präferenzwechsel neu gesetzt.")
-            if new_pref == current_theme_setting: # Wenn "System" geklickt wurde und schon "System" war
-                 theme_changed_visually_or_preference_changed = True # Im Zweifel neu anwenden
+            if new_pref == current_theme_setting:
+                 theme_changed_visually_or_preference_changed = True
 
 
     if theme_changed_visually_or_preference_changed:
@@ -991,23 +977,17 @@ def on_theme_preference_changed():
             if 'sv_ttk' in sys.modules:
                 debug_log(f"Versuche Theme dynamisch auf '{_actual_theme_to_set}' zu setzen (Präferenz war '{new_pref}')...")
                 sv_ttk.set_theme(_actual_theme_to_set)
-                # ***** NEU: update_idletasks hinzufügen *****
                 if root and root.winfo_exists():
                     root.update_idletasks()
-                # *******************************************
                 debug_log(f"Theme dynamisch auf '{_actual_theme_to_set}' erfolgreich gesetzt. (update_idletasks nach set_theme)")
                 
                 if style: 
                     apply_custom_font_sizes(BASE_FONT_SIZE) 
-                    # ***** NEU: update_idletasks hinzufügen *****
                     if root and root.winfo_exists():
                         root.update_idletasks()
-                    # *******************************************
                     debug_log(f"Eigene Schriftanpassungen erneut angewendet für Theme '{_actual_theme_to_set}'. (update_idletasks nach apply_custom)")
                 
-                # Treeview Styles nach Theme-Wechsel neu anwenden (war schon da)
                 if style and tree_programs and ('_fixed_map' in globals()):
-                     # ... (dein Code für Treeview-Anpassung, ggf. mit disabled_fg) ...
                      style.map("Treeview", foreground=_fixed_map("foreground"), background=_fixed_map("background"))
                      disabled_fg = "gray" 
                      if _actual_theme_to_set == "dark":
@@ -1017,7 +997,6 @@ def on_theme_preference_changed():
             else:
                 debug_log("WARNUNG: sv_ttk nicht verfügbar für dyn. Theme-Wechsel.")
 
-            # Die globale Präferenz aktualisieren und speichern
             current_theme_setting = new_pref 
             if not config.has_section('Settings'): config.add_section('Settings')
             config['Settings']['ThemePreference'] = current_theme_setting
@@ -1036,7 +1015,7 @@ def update_gui_language():
         debug_log("FEHLER: update_gui_language ohne gültiges root-Fenster aufgerufen.")
         return
     try:
-        if root: root.title(translate("Watchdog")) # Stelle sicher, dass dieser Key in allen JSONs existiert
+        if root: root.title(translate("Watchdog"))
         if settings_frame: settings_frame.config(text=translate("Settings"))
         if programs_frame: programs_frame.config(text=translate("Programs"))
         if add_frame: add_frame.config(text=translate("Add program"))
@@ -1047,47 +1026,33 @@ def update_gui_language():
         if lblTheme: lblTheme.config(text=translate("Theme:"))
         if btnSaveConfig: btnSaveConfig.config(text=translate("Save settings"))
         if btnAddProg: btnAddProg.config(text=translate("Add"))
-        
-        # ***** KORREKTUR HIER *****
-        if btnRemoveProg: btnRemoveProg.config(text=translate("Remove selected")) # Korrekter Schlüssel
-        if btnEditProg: btnEditProg.config(text=translate("Edit selected"))     # Korrekter Schlüssel
-        # **************************
-        
-        if btnStartWatchdog: btnStartWatchdog.config(text=translate("Start Watchdog")) # Überprüfe diesen Schlüssel auch in deinen JSONs
-        if btnStopWatchdog: btnStopWatchdog.config(text=translate("Stop Watchdog"))   # Überprüfe diesen Schlüssel auch
+        if btnRemoveProg: btnRemoveProg.config(text=translate("Remove selected"))
+        if btnEditProg: btnEditProg.config(text=translate("Edit selected"))
+        if btnStartWatchdog: btnStartWatchdog.config(text=translate("Start Watchdog"))
+        if btnStopWatchdog: btnStopWatchdog.config(text=translate("Stop Watchdog"))
         if btnExitApp: btnExitApp.config(text=translate("Exit"))
         if btnBrowseAdd: btnBrowseAdd.config(text=translate("...")) 
         if chkEnabledAdd: chkEnabledAdd.config(text=translate("Activate"))
-        if r_system: r_system.config(text=translate("System")) # Schlüssel für Radiobuttons
+        if r_system: r_system.config(text=translate("System"))
         if r_light: r_light.config(text=translate("Light"))
         if r_dark: r_dark.config(text=translate("Dark"))
         if tree_programs:
             tree_programs.heading("nr", text=translate("Nr."))
             tree_programs.heading("name", text=translate("Name (from path)"))
             tree_programs.heading("path", text=translate("Path"))
-            tree_programs.heading("enabled", text=translate("Activated")) # Oder "Enabled", je nach Konsistenz
+            tree_programs.heading("enabled", text=translate("Activated"))
         
         current_status = status_bar_text.get()
-        # Status nur aktualisieren, wenn er "Bereit." oder ein Äquivalent war, 
-        # oder wenn der Watchdog nicht läuft, um Laufmeldungen nicht zu überschreiben.
-        # Es ist wichtig, dass der Schlüssel "Ready." in allen JSON-Dateien existiert.
-        if is_status_resettable(current_status): # Eine Hilfsfunktion könnte hier nützlich sein
+        if is_status_resettable(current_status):
             status_bar_text.set(translate("Ready."))
-        # Behalte spezifische Watchdog-Status bei, wenn er läuft und diese anzeigt
 
         debug_log("GUI-Texte aktualisiert.")
     except Exception as e: 
         debug_log(f"FEHLER Aktualisieren GUI-Texte: {e}"); import traceback; traceback.print_exc()
 
-# Hilfsfunktion (optional, aber empfohlen für den Status-Text)
-
 def is_status_resettable(status_text):
-    # Überprüfe, ob der aktuelle Status eine generische Meldung ist, die überschrieben werden kann
-    # oder ob der Watchdog nicht läuft.
-    if not is_running: # is_running ist deine globale Variable
+    if not is_running:
         return True
-    # Prüfe gegen die übersetzten Versionen von "Bereit", "Gestoppt" etc.
-    # Diese Schlüssel müssen in deinen JSON-Dateien existieren.
     resettable_keys = ["Ready.", "Watchdog stopped."]
     for key in resettable_keys:
         if status_text == translate(key):
@@ -1096,25 +1061,18 @@ def is_status_resettable(status_text):
 
 # --- Hauptteil ---
 if __name__ == "__main__":
-    # Dieser erste Print ist OK für das allererste Lebenszeichen im Log.
     print(f"INFO ({time.strftime('%H:%M:%S')}): Watchdog Skript Start (GUI Modus)")
 
-    # Globale Variablen, die hier initialisiert oder referenziert werden.
-    # 'config' ist bereits global definiert. BASE_FONT_SIZE sollte auch global sein.
     root = None
     style = None
 
-    # --- SCHRITT 0: Tkinter Hauptfenster EINMALIG erstellen und sofort verstecken ---
     try:
         root = tk.Tk()
-        root.withdraw() # Verstecken, bis alles konfiguriert und gestylt ist
-        # Verwende debug_log für alle weiteren Logs nach diesem Punkt.
-        # Das debug_log System selbst benötigt 'root' nicht für die print-Ausgabe,
-        # aber für das Update der Statuszeile, was hier noch nicht relevant ist.
+        root.withdraw()
         debug_log(f"Tk Hauptfenster (root) EINMALIG erstellt und initial versteckt.")
     except Exception as e_root_init:
         critical_error_msg = f"Konnte Tkinter-Hauptfenster nicht erstellen: {e_root_init}"
-        print(f"KRITISCHER FEHLER: {critical_error_msg}") # Fallback auf print
+        print(f"KRITISCHER FEHLER: {critical_error_msg}")
         try:
             temp_err_root = tk.Tk(); temp_err_root.withdraw()
             messagebox.showerror("Schwerwiegender Fehler", critical_error_msg, parent=None)
@@ -1122,12 +1080,11 @@ if __name__ == "__main__":
         except: pass
         sys.exit(1)
 
-    # --- SCHRITT 1: Konfigurationsdatei initialisieren/laden (verwendet globales 'config') ---
     if not os.path.exists(CONFIG_FILE):
         debug_log(f"Konfigurationsdatei '{CONFIG_FILE}' nicht gefunden. Erstelle Standard-INI...")
-        current_language = 'de'     # Harter Default für Erst-Erstellung
-        current_theme_setting = 'system' # Harter Default für Erst-Erstellung
-        if not create_default_ini(): # Füllt globales 'config' und speichert; verwendet obige Defaults
+        current_language = 'de'
+        current_theme_setting = 'system'
+        if not create_default_ini():
             error_msg_cfg = f"Konnte Standard-Konfigurationsdatei nicht erstellen:\n{CONFIG_FILE}\nAnwendung kann nicht starten."
             debug_log(f"KRITISCHER FEHLER: {error_msg_cfg}")
             if root: messagebox.showerror("Kritischer Konfigurationsfehler", error_msg_cfg, parent=root)
@@ -1138,7 +1095,7 @@ if __name__ == "__main__":
     else:
         debug_log(f"Lade Konfiguration aus '{CONFIG_FILE}'...")
         try:
-            config.read(CONFIG_FILE, encoding='utf-8') # Lese in globales 'config'-Objekt
+            config.read(CONFIG_FILE, encoding='utf-8')
             if not config.has_section('Settings'):
                 debug_log("WARNUNG: [Settings]-Sektion fehlt in INI. Ergänze mit Defaults im 'config'-Objekt.")
                 config.add_section('Settings')
@@ -1156,7 +1113,6 @@ if __name__ == "__main__":
             config['Settings']['Language'] = 'de'; config['Settings']['ThemePreference'] = 'system'
             config['Settings']['CheckCycleSec'] = str(DEFAULT_CHECK_CYCLE_SEC); config['Settings']['StartDelaySec'] = str(DEFAULT_START_DELAY_SEC)
 
-    # --- SCHRITT 2: Globale Sprach- und Theme-Präferenzen aus 'config' setzen ---
     try:
         current_language = config.get('Settings', 'Language', fallback='de')
         current_theme_setting = config.get('Settings', 'ThemePreference', fallback='system').lower()
@@ -1173,15 +1129,13 @@ if __name__ == "__main__":
         current_language = 'de'; current_theme_setting = 'system'
         load_language(current_language, is_initial_load=True)
 
-    # --- SCHRITT 3: Globale Font Overrides via Tk Resource Database setzen ---
-    # BASE_FONT_SIZE ist global definiert (z.B. 8 oder 9)
     font_family_for_override = "Calibri" 
     if sys.platform == "darwin": font_family_for_override = "Helvetica Neue"
     elif sys.platform.startswith("linux"): font_family_for_override = "DejaVu Sans"
     
     font_spec_for_override = f"{{{font_family_for_override}}} {BASE_FONT_SIZE}"
 
-    if root: # Nur ausführen, wenn root erfolgreich erstellt wurde
+    if root:
         root.option_add("*TEntry.font", font_spec_for_override)
         root.option_add("*TCombobox.font", font_spec_for_override)
         root.option_add("*TCombobox*Listbox.font", font_spec_for_override)
@@ -1189,16 +1143,13 @@ if __name__ == "__main__":
         root.option_add("*TButton.font", font_spec_for_override)
         root.option_add("*TLabel.font", font_spec_for_override)
         root.option_add("*Treeview.font", font_spec_for_override)
-        # Treeview.Heading wird separat in apply_custom_font_sizes behandelt
         debug_log(f"Globale Font Overrides via root.option_add gesetzt mit: {font_spec_for_override}")
     else:
         debug_log("FEHLER: root nicht initialisiert, globale Font Overrides übersprungen.")
 
-    # --- SCHRITT 4: Fenster-Icon setzen ---
     try:
-        # icon_path = resource_path('watchdog.ico') # ALTE ZEILE
         icon_filename = 'watchdog.ico'
-        icon_path = get_icon_resource_path(icon_filename) # NEUE ZEILE
+        icon_path = get_icon_resource_path(icon_filename)
         debug_log(f"Versuche Icon zu laden von: {icon_path}")
         if os.path.exists(icon_path) and root:
             root.iconbitmap(icon_path)
@@ -1208,7 +1159,6 @@ if __name__ == "__main__":
     except Exception as e_icon:
         debug_log(f"Fehler beim Setzen des Icons: {e_icon}")
 
-    # --- SCHRITT 5: Tatsächliches initiales Theme bestimmen und mit sv_ttk setzen ---
     actual_theme_to_set = "light" 
     debug_log(f"Bestimme initiales Theme: Aktuelle Theme-Präferenz='{current_theme_setting}'")
     if current_theme_setting == "system":
@@ -1219,7 +1169,7 @@ if __name__ == "__main__":
     elif current_theme_setting == "dark":
         actual_theme_to_set = "dark"
         debug_log(f"Theme-Präferenz ist 'dark'. Setze Theme auf '{actual_theme_to_set}'.")
-    elif current_theme_setting == "light": # Expliziter Check für Klarheit
+    elif current_theme_setting == "light":
         actual_theme_to_set = "light"
         debug_log(f"Theme-Präferenz ist 'light'. Setze Theme auf '{actual_theme_to_set}'.")
     
@@ -1233,13 +1183,11 @@ if __name__ == "__main__":
     except Exception as e_theme_init:
         debug_log(f"FEHLER beim initialen Setzen des sv_ttk Themes: {e_theme_init}")
 
-    # --- SCHRITT 6: Globale Styles (ttk.Style) initialisieren und spezifische Anpassungen ---
     debug_log(f"Initialisiere GUI-Styles: Angewandtes Theme='{actual_theme_to_set}' (Präferenz='{current_theme_setting}').")
     try: 
         if root: 
             style = ttk.Style(root)
             
-            # Verwende die fokussierte Version von apply_custom_font_sizes
             apply_custom_font_sizes(BASE_FONT_SIZE) 
 
             if '_fixed_map' in globals():
@@ -1254,16 +1202,15 @@ if __name__ == "__main__":
     except Exception as e_style_init:
         debug_log(f"FEHLER bei Style-Initialisierung oder Schriftanpassung: {e_style_init}")
 
-    # --- SCHRITT 7: GUI-Widgets erstellen und Hauptschleife starten ---
     try:
-        if not root: # Sollte nicht passieren, wenn die Logik oben korrekt ist
+        if not root:
             raise Exception("root-Fenster ist None vor create_gui_widgets.")
 
         create_gui_widgets() 
         load_settings_and_programs()
         update_watchdog_buttons()
         
-        root.deiconify() # Fenster jetzt anzeigen
+        root.deiconify()
 
         debug_log("Plane automatischen Watchdog-Start...")
         root.after(100, on_start_watchdog_click)
@@ -1279,9 +1226,9 @@ if __name__ == "__main__":
              except Exception as e_destroy: debug_log(f"Fehler beim Zerstören des Fensters im Fehlerfall: {e_destroy}")
         try:
             temp_err_root = tk.Tk(); temp_err_root.withdraw()
-            messagebox.showerror("Schwerwiegender Laufzeitfehler", f"Ein schwerwiegender Fehler ist aufgetreten:\n\n{e_gui_critical}\n\nTraceback:\n{traceback.format_exc()}", parent=None) # parent=None für Notfall
+            messagebox.showerror("Schwerwiegender Laufzeitfehler", f"Ein schwerwiegender Fehler ist aufgetreten:\n\n{e_gui_critical}\n\nTraceback:\n{traceback.format_exc()}", parent=None)
             temp_err_root.destroy()
-        except: pass # Letzter Versuch, falls auch das scheitert
+        except: pass
     finally:
         debug_log("Finale Aufräumarbeiten im __main__ finally-Block...");
         if watchdog_thread and watchdog_thread.is_alive():

@@ -28,7 +28,7 @@ VSVersionInfo(
          StringStruct('LegalCopyright', '© 2025 DasAoD'),
          StringStruct('OriginalFilename', 'Watchdog.exe'),
          StringStruct('ProductName', 'Watchdog'),
-         StringStruct('ProductVersion', '1.0.1.0')] # Sollte mit prodvers oben übereinstimmen
+         StringStruct('ProductVersion', '1.0.0.0')] # Sollte mit prodvers oben übereinstimmen
       ),
       StringTable(
         '040904b0',  # Sprachcode für Englisch (USA), Codepage Unicode
@@ -39,7 +39,7 @@ VSVersionInfo(
          StringStruct('LegalCopyright', '© 2025 DasAoD'), # Copyright bleibt oft gleich
          StringStruct('OriginalFilename', 'Watchdog.exe'),
          StringStruct('ProductName', 'Watchdog'),
-         StringStruct('ProductVersion', '1.0.1.0')]
+         StringStruct('ProductVersion', '1.0.0.0')]
       ),
       StringTable(
         '040504b0',  # Sprachcode für Tschechisch (Tschechei), Codepage Unicode
@@ -50,7 +50,7 @@ VSVersionInfo(
          StringStruct('LegalCopyright', '© 2025 DasAoD'), # Copyright bleibt oft gleich
          StringStruct('OriginalFilename', 'Watchdog.exe'),
          StringStruct('ProductName', 'Watchdog'),
-         StringStruct('ProductVersion', '1.0.1.0')]
+         StringStruct('ProductVersion', '1.0.0.0')]
       ),
       StringTable(
         '040c04b0',  # Sprachcode für Französisch (Frankreich), Codepage Unicode
@@ -61,7 +61,7 @@ VSVersionInfo(
          StringStruct('LegalCopyright', '© 2025 DasAoD'), # Copyright bleibt oft gleich
          StringStruct('OriginalFilename', 'Watchdog.exe'),
          StringStruct('ProductName', 'Watchdog'),
-         StringStruct('ProductVersion', '1.0.1.0')]
+         StringStruct('ProductVersion', '1.0.0.0')]
       ),
       StringTable(
         '041004b0',  # Sprachcode für Italienisch (Italien), Codepage Unicode
@@ -72,7 +72,7 @@ VSVersionInfo(
          StringStruct('LegalCopyright', '© 2025 DasAoD'), # Copyright bleibt oft gleich
          StringStruct('OriginalFilename', 'Watchdog.exe'),
          StringStruct('ProductName', 'Watchdog'),
-         StringStruct('ProductVersion', '1.0.1.0')]
+         StringStruct('ProductVersion', '1.0.0.0')]
       ),
       StringTable(
         '0c0a04b0',  # Sprachcode für Spanisch (Spanien), Codepage Unicode
@@ -83,7 +83,7 @@ VSVersionInfo(
          StringStruct('LegalCopyright', '© 2025 DasAoD'), # Copyright bleibt oft gleich
          StringStruct('OriginalFilename', 'Watchdog.exe'),
          StringStruct('ProductName', 'Watchdog'),
-         StringStruct('ProductVersion', '1.0.1.0')]
+         StringStruct('ProductVersion', '1.0.0.0')]
       ),
       StringTable(
         '040e04b0',  # Sprachcode für Ungarisch (Ungarn), Codepage Unicode
@@ -94,7 +94,7 @@ VSVersionInfo(
          StringStruct('LegalCopyright', '© 2025 DasAoD'), # Copyright bleibt oft gleich
          StringStruct('OriginalFilename', 'Watchdog.exe'),
          StringStruct('ProductName', 'Watchdog'),
-         StringStruct('ProductVersion', '1.0.1.0')]
+         StringStruct('ProductVersion', '1.0.0.0')]
       )
     ]),
     VarFileInfo([VarStruct('Translation', [1031, 1200, 1033, 1200, 1029, 1200, 1036, 1200, 1040, 1200, 1034, 1200, 1038, 1200])])
