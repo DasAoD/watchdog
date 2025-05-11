@@ -1,0 +1,102 @@
+VSVersionInfo(
+  ffi=FixedFileInfo(
+    # Datei-Version (Major, Minor, Build, Patch)
+    filevers=(1, 0, 1, 0),
+    # Produkt-Version (Major, Minor, Build, Patch)
+    prodvers=(1, 0, 1, 0),
+    # Dateiversions-Maske (meist 0x3f oder 0x17)
+    mask=0x3f,
+    # Datei-Flags (z.B. 0x0 für Release, 0x2 für Debug)
+    flags=0x0,
+    # Betriebssystem (0x40004L für Windows NT Win32)
+    OS=0x40004, # Das 'L' ist in Python 3 nicht mehr nötig für Longs
+    # Dateityp (0x1 für Anwendung .exe)
+    fileType=0x1,
+    # Datei-Subtyp (0x0 für keinen speziellen Subtyp)
+    subtype=0x0,
+    # Datum (0,0 für keine spezifische Datumsangabe hier)
+    date=(0, 0)
+  ),
+  kids=[
+    StringFileInfo([
+      StringTable(
+        '040704b0',  # Sprachcode für Deutsch (Deutschland), Codepage Unicode
+        [StringStruct('CompanyName', 'DasAoD'),
+         StringStruct('FileDescription', 'Watchdog-Überwachungstool'),
+         StringStruct('FileVersion', '1.0.1.0'), # Sollte mit filevers oben übereinstimmen
+         StringStruct('InternalName', 'Watchdog'),
+         StringStruct('LegalCopyright', '© 2025 DasAoD'),
+         StringStruct('OriginalFilename', 'Watchdog.exe'),
+         StringStruct('ProductName', 'Watchdog'),
+         StringStruct('ProductVersion', '1.0.1.0')] # Sollte mit prodvers oben übereinstimmen
+      ),
+      StringTable(
+        '040904b0',  # Sprachcode für Englisch (USA), Codepage Unicode
+        [StringStruct('CompanyName', 'DasAoD'), # Kann gleich bleiben oder übersetzt werden
+         StringStruct('FileDescription', 'Watchdog-Überwachungstool'),
+         StringStruct('FileVersion', '1.0.1.0'),
+         StringStruct('InternalName', 'Watchdog'),
+         StringStruct('LegalCopyright', '© 2025 DasAoD'), # Copyright bleibt oft gleich
+         StringStruct('OriginalFilename', 'Watchdog.exe'),
+         StringStruct('ProductName', 'Watchdog'),
+         StringStruct('ProductVersion', '1.0.1.0')]
+      ),
+      StringTable(
+        '040504b0',  # Sprachcode für Tschechisch (Tschechei), Codepage Unicode
+        [StringStruct('CompanyName', 'DasAoD'), # Kann gleich bleiben oder übersetzt werden
+         StringStruct('FileDescription', 'Monitorovací nástroj watchdog'),
+         StringStruct('FileVersion', '1.0.1.0'),
+         StringStruct('InternalName', 'Watchdog'),
+         StringStruct('LegalCopyright', '© 2025 DasAoD'), # Copyright bleibt oft gleich
+         StringStruct('OriginalFilename', 'Watchdog.exe'),
+         StringStruct('ProductName', 'Watchdog'),
+         StringStruct('ProductVersion', '1.0.1.0')]
+      ),
+      StringTable(
+        '040c04b0',  # Sprachcode für Französisch (Frankreich), Codepage Unicode
+        [StringStruct('CompanyName', 'DasAoD'), # Kann gleich bleiben oder übersetzt werden
+         StringStruct('FileDescription', 'Outil de surveillance Watchdog'),
+         StringStruct('FileVersion', '1.0.1.0'),
+         StringStruct('InternalName', 'Watchdog'),
+         StringStruct('LegalCopyright', '© 2025 DasAoD'), # Copyright bleibt oft gleich
+         StringStruct('OriginalFilename', 'Watchdog.exe'),
+         StringStruct('ProductName', 'Watchdog'),
+         StringStruct('ProductVersion', '1.0.1.0')]
+      ),
+      StringTable(
+        '041004b0',  # Sprachcode für Italienisch (Italien), Codepage Unicode
+        [StringStruct('CompanyName', 'DasAoD'), # Kann gleich bleiben oder übersetzt werden
+         StringStruct('FileDescription', 'Strumento di monitoraggio watchdog'),
+         StringStruct('FileVersion', '1.0.1.0'),
+         StringStruct('InternalName', 'Watchdog'),
+         StringStruct('LegalCopyright', '© 2025 DasAoD'), # Copyright bleibt oft gleich
+         StringStruct('OriginalFilename', 'Watchdog.exe'),
+         StringStruct('ProductName', 'Watchdog'),
+         StringStruct('ProductVersion', '1.0.1.0')]
+      ),
+      StringTable(
+        '0c0a04b0',  # Sprachcode für Spanisch (Spanien), Codepage Unicode
+        [StringStruct('CompanyName', 'DasAoD'), # Kann gleich bleiben oder übersetzt werden
+         StringStruct('FileDescription', 'Herramienta de monitoreo de vigilancia'),
+         StringStruct('FileVersion', '1.0.1.0'),
+         StringStruct('InternalName', 'Watchdog'),
+         StringStruct('LegalCopyright', '© 2025 DasAoD'), # Copyright bleibt oft gleich
+         StringStruct('OriginalFilename', 'Watchdog.exe'),
+         StringStruct('ProductName', 'Watchdog'),
+         StringStruct('ProductVersion', '1.0.1.0')]
+      ),
+      StringTable(
+        '040e04b0',  # Sprachcode für Ungarisch (Ungarn), Codepage Unicode
+        [StringStruct('CompanyName', 'DasAoD'), # Kann gleich bleiben oder übersetzt werden
+         StringStruct('FileDescription', 'Őrzőkutya-figyelő eszköz'),
+         StringStruct('FileVersion', '1.0.1.0'),
+         StringStruct('InternalName', 'Watchdog'),
+         StringStruct('LegalCopyright', '© 2025 DasAoD'), # Copyright bleibt oft gleich
+         StringStruct('OriginalFilename', 'Watchdog.exe'),
+         StringStruct('ProductName', 'Watchdog'),
+         StringStruct('ProductVersion', '1.0.1.0')]
+      )
+    ]),
+    VarFileInfo([VarStruct('Translation', [1031, 1200, 1033, 1200, 1029, 1200, 1036, 1200, 1040, 1200, 1034, 1200, 1038, 1200])])
+    ]
+)
