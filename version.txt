@@ -26,7 +26,7 @@ VSVersionInfo(
          StringStruct('FileVersion', '1.0.1.0'), # Sollte mit filevers oben übereinstimmen
          StringStruct('InternalName', 'Watchdog'),
          StringStruct('LegalCopyright', '© 2025 DasAoD'),
-         StringStruct('OriginalFilename', 'Watchdog.exe'),
+         StringStruct('OriginalFilename', 'watchdog.exe'),
          StringStruct('ProductName', 'Watchdog'),
          StringStruct('ProductVersion', '1.0.0.0')] # Sollte mit prodvers oben übereinstimmen
       ),
@@ -37,7 +37,7 @@ VSVersionInfo(
          StringStruct('FileVersion', '1.0.1.0'),
          StringStruct('InternalName', 'Watchdog'),
          StringStruct('LegalCopyright', '© 2025 DasAoD'), # Copyright bleibt oft gleich
-         StringStruct('OriginalFilename', 'Watchdog.exe'),
+         StringStruct('OriginalFilename', 'watchdog.exe'),
          StringStruct('ProductName', 'Watchdog'),
          StringStruct('ProductVersion', '1.0.0.0')]
       ),
@@ -48,7 +48,7 @@ VSVersionInfo(
          StringStruct('FileVersion', '1.0.1.0'),
          StringStruct('InternalName', 'Watchdog'),
          StringStruct('LegalCopyright', '© 2025 DasAoD'), # Copyright bleibt oft gleich
-         StringStruct('OriginalFilename', 'Watchdog.exe'),
+         StringStruct('OriginalFilename', 'watchdog.exe'),
          StringStruct('ProductName', 'Watchdog'),
          StringStruct('ProductVersion', '1.0.0.0')]
       ),
@@ -59,7 +59,7 @@ VSVersionInfo(
          StringStruct('FileVersion', '1.0.1.0'),
          StringStruct('InternalName', 'Watchdog'),
          StringStruct('LegalCopyright', '© 2025 DasAoD'), # Copyright bleibt oft gleich
-         StringStruct('OriginalFilename', 'Watchdog.exe'),
+         StringStruct('OriginalFilename', 'watchdog.exe'),
          StringStruct('ProductName', 'Watchdog'),
          StringStruct('ProductVersion', '1.0.0.0')]
       ),
@@ -70,7 +70,7 @@ VSVersionInfo(
          StringStruct('FileVersion', '1.0.1.0'),
          StringStruct('InternalName', 'Watchdog'),
          StringStruct('LegalCopyright', '© 2025 DasAoD'), # Copyright bleibt oft gleich
-         StringStruct('OriginalFilename', 'Watchdog.exe'),
+         StringStruct('OriginalFilename', 'watchdog.exe'),
          StringStruct('ProductName', 'Watchdog'),
          StringStruct('ProductVersion', '1.0.0.0')]
       ),
@@ -81,7 +81,7 @@ VSVersionInfo(
          StringStruct('FileVersion', '1.0.1.0'),
          StringStruct('InternalName', 'Watchdog'),
          StringStruct('LegalCopyright', '© 2025 DasAoD'), # Copyright bleibt oft gleich
-         StringStruct('OriginalFilename', 'Watchdog.exe'),
+         StringStruct('OriginalFilename', 'watchdog.exe'),
          StringStruct('ProductName', 'Watchdog'),
          StringStruct('ProductVersion', '1.0.0.0')]
       ),
@@ -92,7 +92,7 @@ VSVersionInfo(
          StringStruct('FileVersion', '1.0.1.0'),
          StringStruct('InternalName', 'Watchdog'),
          StringStruct('LegalCopyright', '© 2025 DasAoD'), # Copyright bleibt oft gleich
-         StringStruct('OriginalFilename', 'Watchdog.exe'),
+         StringStruct('OriginalFilename', 'watchdog.exe'),
          StringStruct('ProductName', 'Watchdog'),
          StringStruct('ProductVersion', '1.0.0.0')]
       )
