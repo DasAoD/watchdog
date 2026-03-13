@@ -1,28 +1,110 @@
-# watchdog
-Pythonscript for monitoring and (re)starting programs.
+# Watchdog
 
-After compilation intended for execution under Windows.
+Python program for monitoring and automatically (re)starting programs.
 
-Python and pyinstaller for Windows are required to create and compile the program.
+> I have no programming background and built this entirely with AI support.  
+> If that's fine with you — great. If not — no problem either.
 
-To compile Python into a single .exe file that contains all dependencies:
+---
 
-`pyinstaller watchdog.spec`
+## Features
 
-Program settings are saved in a simple .ini file.
+- Monitors running processes and restarts them automatically if they stop
+- Configurable check interval and start delay
+- Multilingual UI: German, English, French, Hungarian, Czech, Spanish, Italian
+- Light / Dark / System theme support
+- Settings saved in an external `.ini` file
+- Compiled as a single standalone `.exe` — no dependencies required
 
-Currently supported languages:
-German
-English, German
-French, German
-Hungarian
-Czech
-Spanish
-Italian
+---
 
-To be honest, I don't know how to program at all and have been helped by AI support.
-If you don't have a problem with that, everything is great.
-If you do; no problem either.
+## Requirements
 
+To run the program:
 
-![Screenshot 2025-05-11 192538](https://github.com/user-attachments/assets/3858bf17-6a7e-4585-9b75-5785bca8b632)
+- Windows (compiled `.exe` — no Python required)
+
+To build from source:
+
+- Python 3.x
+- [PyInstaller](https://pyinstaller.org/)
+- Required packages: `psutil`, `sv_ttk`, `tqdm`
+
+Install dependencies:
+
+```
+pip install psutil sv_ttk tqdm
+```
+
+---
+
+## Build
+
+### Recommended (with progress display and auto-cleanup)
+
+```
+python build_script.py
+```
+
+The finished `.exe` will be placed in the `Watchdog/` folder.  
+A detailed build log is saved to the `log/` folder.
+
+### Manual (PyInstaller directly)
+
+```
+pyinstaller watchdog.spec
+```
+
+The `.spec` file automatically bundles the icon and all language files into the single `.exe`.
+
+---
+
+## Configuration
+
+Program settings are stored in `watchdog.ini`, located next to the `.exe`.  
+The file is created automatically on first launch.
+
+---
+
+## Project Structure
+
+```
+watchdog/
+├── icon/               # Application icon
+├── lang/               # Language files (JSON)
+│   ├── de.json
+│   ├── en.json
+│   ├── fr.json
+│   ├── hu.json
+│   ├── cz.json
+│   ├── es.json
+│   └── it.json
+├── watchdog.py         # Main application
+├── watchdog.spec       # PyInstaller spec (bundles icon + lang files)
+├── build_script.py     # Build helper script
+├── version.txt         # Windows version info for the .exe
+└── watchdog.ini        # Runtime config (created on first launch, not in repo)
+```
+
+---
+
+## Roadmap
+
+- [ ] Multiplatform support (Linux, macOS)
+- [ ] External config file support (separate from hardcoded values)
+- [ ] Structured logging (restarts, errors, process status)
+- [ ] Notifications on restart or failure (e-mail, webhook, Telegram)
+- [ ] Extended check types (services, TCP ports, HTTP endpoints)
+- [ ] Backoff and restart loop protection
+
+---
+
+## License
+
+[MIT](LICENSE)
+
+---
+
+## Screenshot
+
+![Watchdog Screenshot](https://github.com/user-attachments/assets/3858bf17-6a7e-4585-9b75-5785bca8b632)
