@@ -99,6 +99,16 @@ watchdog/
 
 ---
 
+## Mitwirkende
+
+Dieses Projekt wurde in Zusammenarbeit mit [Claude](https://claude.ai) (Sonnet 4.6) von [Anthropic](https://anthropic.com) entwickelt und iterativ ausgebaut.  
+Der überwiegende Teil des Codes, der Architektur und der Dokumentation wurde durch KI generiert und gemeinsam verfeinert.
+
+| Rolle | Person / Tool |
+|---|---|
+| Projektidee, Anforderungen & Tests | [DasAoD](https://git.uliana.de/DasAoD) |
+| Code, Architektur, Dokumentation | [Claude](https://git.uliana.de/Claude) (Anthropic) |
+
 ## License
 
 [MIT](LICENSE)
