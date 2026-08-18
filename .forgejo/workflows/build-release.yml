@@ -7,8 +7,8 @@ name: Build & Release Windows executable
 # - Runner "mfbot-runner" (Label windows-latest) muss online sein
 # - Repo-Settings -> Actions -> General: Token-Berechtigung auf "Read and write" stellen,
 #   sonst schlägt das Anlegen/Hochladen des Release mit 403 fehl
-# - mfbotbt braucht Internetzugriff zu github.com (actions/setup-python) und code.forgejo.org
-#   (actions/checkout-Mirror), sowie zu git.uliana.de selbst
+# - mfbotbt braucht Internetzugriff zu code.forgejo.org (actions/checkout-Mirror) und git.uliana.de
+# - Python muss auf mfbotbt bereits installiert und im PATH sein (dort vorhanden: 3.11.9)
 
 on:
   push:
@@ -22,11 +22,6 @@ jobs:
     steps:
       - name: Checkout
         uses: https://code.forgejo.org/actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.13'
 
       - name: Install dependencies
         run: |
