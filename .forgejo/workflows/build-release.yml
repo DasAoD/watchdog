@@ -1,0 +1,70 @@
+name: Build & Release Windows executable
+
+# Baut watchdog.exe per PyInstaller auf dem selbst gehosteten Windows-Runner (mfbotbt)
+# und hängt sie automatisch an den zum Tag passenden Forgejo-Release an.
+#
+# Voraussetzungen:
+# - Runner "mfbot-runner" (Label windows-latest) muss online sein
+# - Repo-Settings -> Actions -> General: Token-Berechtigung auf "Read and write" stellen,
+#   sonst schlägt das Anlegen/Hochladen des Release mit 403 fehl
+# - mfbotbt braucht Internetzugriff zu github.com (actions/setup-python) und code.forgejo.org
+#   (actions/checkout-Mirror), sowie zu git.uliana.de selbst
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build-and-release:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: https://code.forgejo.org/actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller -r requirements.txt
+
+      - name: Build watchdog.exe
+        run: pyinstaller watchdog.spec --noconfirm
+
+      - name: Create/update Forgejo release and upload watchdog.exe
+        shell: pwsh
+        env:
+          FORGEJO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          FORGEJO_SERVER: ${{ github.server_url }}
+          REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          $headers = @{ Authorization = "token $env:FORGEJO_TOKEN" }
+          $apiBase = "$env:FORGEJO_SERVER/api/v1/repos/$env:REPO"
+
+          # Release für diesen Tag suchen, sonst neu anlegen
+          try {
+            $release = Invoke-RestMethod -Uri "$apiBase/releases/tags/$env:TAG" -Headers $headers -Method Get
+          } catch {
+            $body = @{
+              tag_name = $env:TAG
+              name     = "watchdog $env:TAG"
+              body     = "Automatisch gebaut von Forgejo Actions für $env:TAG."
+            } | ConvertTo-Json
+            $release = Invoke-RestMethod -Uri "$apiBase/releases" -Headers $headers -Method Post -ContentType "application/json" -Body $body
+          }
+
+          # Falls schon ein Asset gleichen Namens existiert (z.B. bei erneutem Tag-Push), erst löschen
+          foreach ($asset in $release.assets) {
+            if ($asset.name -eq "Watchdog.exe") {
+              Invoke-RestMethod -Uri "$apiBase/releases/$($release.id)/assets/$($asset.id)" -Headers $headers -Method Delete
+            }
+          }
+
+          $uploadUri = "$apiBase/releases/$($release.id)/assets?name=Watchdog.exe"
+          Invoke-RestMethod -Uri $uploadUri -Headers $headers -Method Post -InFile "dist/Watchdog.exe" -ContentType "application/octet-stream"
