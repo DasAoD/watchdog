@@ -33,7 +33,7 @@ jobs:
         run: pyinstaller watchdog.spec --noconfirm
 
       - name: Create/update Forgejo release and upload watchdog.exe
-        shell: pwsh
+        shell: powershell
         env:
           FORGEJO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           FORGEJO_SERVER: ${{ github.server_url }}
