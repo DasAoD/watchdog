@@ -5,10 +5,11 @@ name: Build & Release Windows executable
 #
 # Voraussetzungen:
 # - Runner "mfbot-runner" (Label windows-latest) muss online sein
-# - Repo-Settings -> Actions -> General: Token-Berechtigung auf "Read and write" stellen,
-#   sonst schlägt das Anlegen/Hochladen des Release mit 403 fehl
 # - mfbotbt braucht Internetzugriff zu code.forgejo.org (actions/checkout-Mirror) und git.uliana.de
 # - Python muss auf mfbotbt bereits installiert und im PATH sein (dort vorhanden: 3.11.9)
+#
+# Der eingebaute Token (secrets.GITHUB_TOKEN) hat auf dem eigenen, nicht-geforkten Repo
+# standardmäßig Schreibzugriff - keine zusätzliche Einstellung nötig.
 
 on:
   push:
