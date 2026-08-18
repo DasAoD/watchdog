@@ -1,15 +1,20 @@
 name: Build & Release Windows executable
 
-# Baut watchdog.exe per PyInstaller auf dem selbst gehosteten Windows-Runner (mfbotbt)
-# und hängt sie automatisch an den zum Tag passenden Forgejo-Release an.
+# Baut watchdog.exe per PyInstaller auf dem self-hosted Windows-Runner (mfbotbt) und
+# legt/aktualisiert danach den zum Tag passenden Forgejo-Release samt Watchdog.exe-Anhang.
+#
+# Build und Release-Erstellung laufen bewusst in getrennten Jobs (analog zu
+# DasAoD/vpn-ip-checker): der Release-Schritt (curl gegen die Forgejo-API) läuft auf dem
+# Linux-Runner (vpn-runner, Label ubuntu-latest) statt auf dem Windows-Runner, damit er
+# ganz normales bash/curl nutzen kann - keine Abhängigkeit von einer bestimmten
+# PowerShell-Version auf mfbotbt.
 #
 # Voraussetzungen:
-# - Runner "mfbot-runner" (Label windows-latest) muss online sein
-# - mfbotbt braucht Internetzugriff zu code.forgejo.org (actions/checkout-Mirror) und git.uliana.de
-# - Python muss auf mfbotbt bereits installiert und im PATH sein (dort vorhanden: 3.11.9)
-#
-# Der eingebaute Token (secrets.GITHUB_TOKEN) hat auf dem eigenen, nicht-geforkten Repo
-# standardmäßig Schreibzugriff - keine zusätzliche Einstellung nötig.
+# - Runner "mfbot-runner" (windows-latest) und "vpn-runner" (ubuntu-latest) müssen online sein
+# - mfbotbt braucht Internetzugriff zu code.forgejo.org (Checkout-/Artifact-Actions-Mirror)
+#   und git.uliana.de; Python muss dort bereits installiert sein (vorhanden: 3.11.9)
+# - Der eingebaute Token (secrets.GITHUB_TOKEN) hat auf dem eigenen, nicht-geforkten Repo
+#   standardmäßig Schreibzugriff - keine zusätzliche Einstellung nötig
 
 on:
   push:
@@ -18,11 +23,10 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-and-release:
+  build-windows:
     runs-on: windows-latest
     steps:
-      - name: Checkout
-        uses: https://code.forgejo.org/actions/checkout@v4
+      - uses: https://code.forgejo.org/actions/checkout@v4
 
       - name: Install dependencies
         run: |
@@ -32,35 +36,42 @@ jobs:
       - name: Build watchdog.exe
         run: pyinstaller watchdog.spec --noconfirm
 
-      - name: Create/update Forgejo release and upload watchdog.exe
-        shell: powershell
-        env:
-          FORGEJO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          FORGEJO_SERVER: ${{ github.server_url }}
-          REPO: ${{ github.repository }}
-          TAG: ${{ github.ref_name }}
+      - uses: https://code.forgejo.org/forgejo/upload-artifact@v4
+        with:
+          name: Watchdog
+          path: dist/Watchdog.exe
+
+  release:
+    name: Create Forgejo release
+    needs: [build-windows]
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: https://code.forgejo.org/forgejo/download-artifact@v4
+        with:
+          name: Watchdog
+          path: dist/
+
+      - name: Create/update release and upload Watchdog.exe
         run: |
-          $headers = @{ Authorization = "token $env:FORGEJO_TOKEN" }
-          $apiBase = "$env:FORGEJO_SERVER/api/v1/repos/$env:REPO"
+          TAG=${GITHUB_REF#refs/tags/}
+          API="${GITHUB_SERVER_URL}/api/v1/repos/${GITHUB_REPOSITORY}"
 
           # Release für diesen Tag suchen, sonst neu anlegen
-          try {
-            $release = Invoke-RestMethod -Uri "$apiBase/releases/tags/$env:TAG" -Headers $headers -Method Get
-          } catch {
-            $body = @{
-              tag_name = $env:TAG
-              name     = "watchdog $env:TAG"
-              body     = "Automatisch gebaut von Forgejo Actions für $env:TAG."
-            } | ConvertTo-Json
-            $release = Invoke-RestMethod -Uri "$apiBase/releases" -Headers $headers -Method Post -ContentType "application/json" -Body $body
-          }
+          RELEASE_ID=$(curl -s "${API}/releases/tags/${TAG}" \
+            -H "Authorization: token ${GITHUB_TOKEN}" \
+            | grep -o '"id":[0-9]*' | head -1 | cut -d: -f2)
 
-          # Falls schon ein Asset gleichen Namens existiert (z.B. bei erneutem Tag-Push), erst löschen
-          foreach ($asset in $release.assets) {
-            if ($asset.name -eq "Watchdog.exe") {
-              Invoke-RestMethod -Uri "$apiBase/releases/$($release.id)/assets/$($asset.id)" -Headers $headers -Method Delete
-            }
-          }
+          if [ -z "$RELEASE_ID" ]; then
+            RELEASE_ID=$(curl -s -X POST "${API}/releases" \
+              -H "Authorization: token ${GITHUB_TOKEN}" \
+              -H "Content-Type: application/json" \
+              -d "{\"tag_name\": \"${TAG}\", \"name\": \"watchdog ${TAG}\", \"body\": \"Automatisch gebaut von Forgejo Actions für ${TAG}.\", \"draft\": false}" \
+              | grep -o '"id":[0-9]*' | head -1 | cut -d: -f2)
+          fi
 
-          $uploadUri = "$apiBase/releases/$($release.id)/assets?name=Watchdog.exe"
-          Invoke-RestMethod -Uri $uploadUri -Headers $headers -Method Post -InFile "dist/Watchdog.exe" -ContentType "application/octet-stream"
+          curl -s -X POST \
+            "${API}/releases/${RELEASE_ID}/assets?name=Watchdog.exe" \
+            -H "Authorization: token ${GITHUB_TOKEN}" \
+            -H "Content-Type: application/octet-stream" \
+            --data-binary @"dist/Watchdog.exe"
