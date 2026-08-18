@@ -62,11 +62,11 @@ watchdog_state = 0; last_check_completion_time = 0.0; last_program_start_time = 
 
 # GUI Elemente Handles
 root = None; check_cycle_var_sec = None; start_delay_var_sec = None; btnSaveConfig = None
-tree_programs = None; inpProgPathAdd = None; chkEnabledVar = None; chkEnabledAdd = None
+tree_programs = None; inpProgPathAdd = None; inpProgNameAdd = None; chkEnabledVar = None; chkEnabledAdd = None
 btnAddProg = None; btnRemoveProg = None; btnEditProg = None; btnBrowseAdd = None
 btnStartWatchdog = None; btnStopWatchdog = None; btnExitApp = None
 status_bar_text = None; style = None; help_font = None
-lblCheckCycle = None; lblStartDelay = None; lblLanguage = None; lblPathAdd = None; lblTheme = None
+lblCheckCycle = None; lblStartDelay = None; lblLanguage = None; lblPathAdd = None; lblNameAdd = None; lblTheme = None
 settings_frame = None; programs_frame = None; add_frame = None; theme_frame = None
 r_system = None; r_light = None; r_dark = None; language_combo = None
 
@@ -365,10 +365,14 @@ def load_settings_and_programs():
         try:
             name = config.get(section_name, 'Name', fallback='').strip()
             path = config.get(section_name, 'Path', fallback='').strip()
-            enabled = config.getboolean(section_name, 'Enabled', fallback=False) 
-            
+            # ProcessName fehlt bei älteren Configs (vor der Trennung Anzeigename/Prozessname) -> aus Path ableiten
+            process_name = config.get(section_name, 'ProcessName', fallback='').strip()
+            if not process_name and path:
+                process_name = os.path.basename(path)
+            enabled = config.getboolean(section_name, 'Enabled', fallback=False)
+
             if name and path:
-                program_list.append({'name': name, 'path': path, 'enabled': enabled, 'section': section_name})
+                program_list.append({'name': name, 'path': path, 'process_name': process_name, 'enabled': enabled, 'section': section_name})
                 program_count += 1
                 
                 if tree_programs:
@@ -434,12 +438,21 @@ def _update_action_buttons_state():
     except Exception as e: debug_log(f"Fehler in _update_action_buttons_state: {e}")
 
 # --- Prozess-Management ---
-def is_process_running(process_name):
+def is_process_running(process_name, process_path=None):
+    # Wenn process_path bekannt ist, wird zusätzlich zum Prozessnamen der volle Pfad verglichen.
+    # Das unterscheidet zwei Einträge mit identischer .exe an unterschiedlichen Speicherorten.
+    # Ist der Pfad eines laufenden Prozesses nicht ermittelbar (z. B. AccessDenied), wird
+    # auf den reinen Namensvergleich zurückgefallen, damit die Überwachung nicht komplett ausfällt.
     try:
-        for proc in psutil.process_iter(['name']):
+        target_path = os.path.normcase(os.path.normpath(process_path)) if process_path else None
+        for proc in psutil.process_iter(['name', 'exe']):
             try:
-                if proc.info['name'].lower() == process_name.lower(): return True
-            except: pass
+                if proc.info['name'].lower() != process_name.lower(): continue
+                if not target_path: return True
+                proc_exe = proc.info.get('exe')
+                if not proc_exe: return True  # Pfad nicht ermittelbar -> Namens-Fallback
+                if os.path.normcase(os.path.normpath(proc_exe)) == target_path: return True
+            except (psutil.AccessDenied, psutil.NoSuchProcess): pass
         return False
     except Exception as e: debug_log(f"FEHLER psutil: {e}"); return False
 
@@ -483,7 +496,7 @@ def watchdog_loop(stop_event_thread):
             else:
                 program = current_program_list_for_cycle[current_program_index]
                 if not program['enabled']: current_program_index += 1
-                elif is_process_running(program['name']): current_program_index += 1
+                elif is_process_running(program['process_name'], program['path']): current_program_index += 1
                 else:
                     update_status_message("Status.WatchdogProcessStarting", name=program['name'])
                     debug_log(f"Watchdog: Prozess '{program['name']}' läuft nicht -> Starte...")
@@ -533,9 +546,9 @@ def watchdog_loop(stop_event_thread):
 # --- GUI Erstellung ---
 def create_gui_widgets():
     global root, check_cycle_var_sec, start_delay_var_sec, btnSaveConfig, tree_programs
-    global inpProgPathAdd, chkEnabledVar, chkEnabledAdd, btnBrowseAdd, btnAddProg, btnRemoveProg
+    global inpProgPathAdd, inpProgNameAdd, chkEnabledVar, chkEnabledAdd, btnBrowseAdd, btnAddProg, btnRemoveProg
     global btnEditProg, btnStartWatchdog, btnStopWatchdog, btnExitApp, status_bar_text, style
-    global lblCheckCycle, lblStartDelay, lblLanguage, lblPathAdd, lblTheme, theme_frame, language_combo
+    global lblCheckCycle, lblStartDelay, lblLanguage, lblPathAdd, lblNameAdd, lblTheme, theme_frame, language_combo
     global r_system, r_light, r_dark, theme_preference_var, settings_frame, programs_frame, add_frame, language_var
     global BASE_FONT_SIZE 
 
@@ -600,7 +613,7 @@ def create_gui_widgets():
     columns = ("nr", "name", "path", "enabled");
     tree_programs = ttk.Treeview(programs_frame, columns=columns, show='headings', selectmode='browse')
     tree_programs.heading("nr", text=translate("Nr."));
-    tree_programs.heading("name", text=translate("Name (from path)"));
+    tree_programs.heading("name", text=translate("Name"));
     tree_programs.heading("path", text=translate("Path"));
     tree_programs.heading("enabled", text=translate("Activated"))
     tree_programs.column("nr", width=30, stretch=tk.NO, anchor='e');
@@ -619,22 +632,31 @@ def create_gui_widgets():
     add_frame = ttk.LabelFrame(root, text=translate("Add program"), padding="10");
     add_frame.grid(row=2, column=0, padx=10, pady=5, sticky="ew");
     add_frame.columnconfigure(2, weight=1)
-    
+
     lblPathAdd = ttk.Label(add_frame, text=translate("Path:"));
     lblPathAdd.grid(row=0, column=0, padx=(5,0), pady=2, sticky="w");
-    
-    path_add_help = ttk.Label(add_frame, text="(?)", cursor="question_arrow", style="Help.TLabel") 
+
+    path_add_help = ttk.Label(add_frame, text="(?)", cursor="question_arrow", style="Help.TLabel")
     path_add_help.grid(row=0, column=1, padx=(0,5), pady=2, sticky="w")
     path_add_help.bind("<Button-1>", lambda e: show_help_path_add())
-    
+
     inpProgPathAdd = ttk.Entry(add_frame, width=50); inpProgPathAdd.grid(row=0, column=2, padx=5, pady=2, sticky="ew");
     btnBrowseAdd = ttk.Button(add_frame, text=translate("..."), width=3, command=on_browse_button_click);
     btnBrowseAdd.grid(row=0, column=3, padx=5, pady=2)
-    
+
+    lblNameAdd = ttk.Label(add_frame, text=translate("Name:"));
+    lblNameAdd.grid(row=1, column=0, padx=(5,0), pady=2, sticky="w");
+
+    name_add_help = ttk.Label(add_frame, text="(?)", cursor="question_arrow", style="Help.TLabel")
+    name_add_help.grid(row=1, column=1, padx=(0,5), pady=2, sticky="w")
+    name_add_help.bind("<Button-1>", lambda e: show_help_name_add())
+
+    inpProgNameAdd = ttk.Entry(add_frame, width=50); inpProgNameAdd.grid(row=1, column=2, padx=5, pady=2, sticky="ew");
+
     chkEnabledAdd = ttk.Checkbutton(add_frame, text=translate("Activate"), variable=chkEnabledVar);
-    chkEnabledAdd.grid(row=1, column=2, padx=5, pady=5, sticky="w");
+    chkEnabledAdd.grid(row=2, column=2, padx=5, pady=5, sticky="w");
     btnAddProg = ttk.Button(add_frame, text=translate("Add"), command=on_add_button_click);
-    btnAddProg.grid(row=1, column=3, padx=5, pady=5, sticky="e")
+    btnAddProg.grid(row=2, column=3, padx=5, pady=5, sticky="e")
 
     bottom_frame = ttk.Frame(root, padding="10"); bottom_frame.grid(row=4, column=0, padx=10, pady=5, sticky="ew"); bottom_frame.columnconfigure(1, weight=1)
     edit_remove_frame = ttk.Frame(bottom_frame); edit_remove_frame.grid(row=0, column=0, sticky="w")
@@ -656,6 +678,7 @@ def create_gui_widgets():
 def show_help_cycle(): messagebox.showinfo(translate("Help: Check cycle"), translate("Time in seconds (s) the watchdog waits after checking all programs before checking again."), parent=root)
 def show_help_delay(): messagebox.showinfo(translate("Help: Start delay"), translate("Time in seconds (s) the watchdog waits after starting a missing program before checking/starting the *next* program in the list."), parent=root)
 def show_help_path_add(): messagebox.showinfo(translate("Help: Path"), translate("Full path to the executable (.exe) file.\nThe process name (e.g., 'program.exe') to monitor is extracted automatically."), parent=root)
+def show_help_name_add(): messagebox.showinfo(translate("Help: Name"), translate("Free text to identify this entry in the list. Defaults to the filename, but you can change it - useful when two entries use the same filename from different locations."), parent=root)
 
 # --- Event Handler ---
 def on_list_selection_change(event=None):
@@ -663,18 +686,23 @@ def on_list_selection_change(event=None):
 
 def on_browse_button_click():
     debug_log(">>> Event: Browse Add Path Click"); sFilePath = filedialog.askopenfilename( title=translate("Select program"), initialdir=os.path.dirname(inpProgPathAdd.get()) if inpProgPathAdd.get() else application_path, filetypes=[(translate("Executable files"), "*.exe"), (translate("All files"), "*.*")], parent=root ); root.focus_force()
-    if sFilePath: normalized_path = os.path.normpath(sFilePath); debug_log(f"Ausgewählt: {normalized_path}"); inpProgPathAdd.delete(0, tk.END); inpProgPathAdd.insert(0, normalized_path)
+    if sFilePath:
+        normalized_path = os.path.normpath(sFilePath); debug_log(f"Ausgewählt: {normalized_path}"); inpProgPathAdd.delete(0, tk.END); inpProgPathAdd.insert(0, normalized_path)
+        # Namensfeld nur vorschlagen, wenn der Nutzer noch keinen eigenen Namen eingegeben hat
+        if not inpProgNameAdd.get().strip(): inpProgNameAdd.insert(0, os.path.basename(normalized_path))
     else: debug_log("Keine Datei ausgewählt.")
 
 def on_add_button_click():
-    debug_log(">>> Event: OnAddButtonClick"); new_path = inpProgPathAdd.get().strip(); new_enabled = chkEnabledVar.get(); debug_log(f"Add: Path='{new_path}', Enabled={new_enabled}")
+    debug_log(">>> Event: OnAddButtonClick"); new_path = inpProgPathAdd.get().strip(); new_name = inpProgNameAdd.get().strip(); new_enabled = chkEnabledVar.get(); debug_log(f"Add: Path='{new_path}', Name='{new_name}', Enabled={new_enabled}")
     if not new_path: messagebox.showwarning(translate("Missing input"), translate("Program path cannot be empty."), parent=root); return
-    monitor_name = os.path.basename(new_path);
-    if not monitor_name: messagebox.showerror(translate("Error"), translate("Could not extract filename from path."), parent=root); return
-    if not monitor_name.lower().endswith(".exe"):
-        if not messagebox.askyesno(translate("Warning"), translate("Extracted name '{}' does not seem to be an .exe.\nSave anyway?").format(monitor_name), parent=root): return
+    process_name = os.path.basename(new_path);
+    if not process_name: messagebox.showerror(translate("Error"), translate("Could not extract filename from path."), parent=root); return
+    if not new_name: new_name = process_name  # Kein eigener Name eingegeben -> Dateiname als Anzeigename übernehmen
+    if not process_name.lower().endswith(".exe"):
+        if not messagebox.askyesno(translate("Warning"), translate("Extracted name '{}' does not seem to be an .exe.\nSave anyway?").format(process_name), parent=root): return
+    new_path_normalized = os.path.normcase(os.path.normpath(new_path))
     for prog in program_list:
-        if prog['name'].lower() == monitor_name.lower(): messagebox.showwarning(translate("Duplicate name"), translate("A program named '{}' (extracted from path) already exists.").format(monitor_name), parent=root); return
+        if os.path.normcase(os.path.normpath(prog['path'])) == new_path_normalized: messagebox.showwarning(translate("Duplicate name"), translate("A program with this path already exists:\n{}").format(new_path), parent=root); return
     i = 1;
     while True:
         section_name = f"Program{i}"
@@ -684,8 +712,8 @@ def on_add_button_click():
     debug_log(f"Füge als Sektion hinzu: {section_name}")
     try:
         if not config.has_section(section_name): config.add_section(section_name)
-        config.set(section_name, 'Name', monitor_name); config.set(section_name, 'Path', new_path); config.set(section_name, 'Enabled', str(new_enabled))
-        if save_config_to_file(): debug_log("INI geschrieben (Add)."); load_settings_and_programs(); inpProgPathAdd.delete(0, tk.END); chkEnabledVar.set(True); messagebox.showinfo(translate("Success"), translate("Program '{}' added.").format(monitor_name), parent=root)
+        config.set(section_name, 'Name', new_name); config.set(section_name, 'Path', new_path); config.set(section_name, 'ProcessName', process_name); config.set(section_name, 'Enabled', str(new_enabled))
+        if save_config_to_file(): debug_log("INI geschrieben (Add)."); load_settings_and_programs(); inpProgPathAdd.delete(0, tk.END); inpProgNameAdd.delete(0, tk.END); chkEnabledVar.set(True); messagebox.showinfo(translate("Success"), translate("Program '{}' added.").format(new_name), parent=root)
     except Exception as e: debug_log(f"FEHLER Add/Save: {e}"); messagebox.showerror(translate("Error"), translate("Error adding program:").format(f"\n{e}"), parent=root)
 
 def on_remove_button_click():
@@ -743,15 +771,16 @@ def on_edit_button_click(event=None):
         edit_window.grab_set()
         
         path_var_edit = tk.StringVar(edit_window, value=current_path)
+        name_var_edit = tk.StringVar(edit_window, value=current_name)
         enabled_var_edit = tk.BooleanVar(edit_window, value=current_enabled)
-        
+
         dialog_frame = ttk.Frame(edit_window, padding="10")
         dialog_frame.pack(expand=True, fill=tk.BOTH)
         dialog_frame.columnconfigure(1, weight=1)
-        
+
         ttk.Label(dialog_frame, text=translate("Name:")).grid(row=0, column=0, padx=5, pady=5, sticky="w")
-        name_display_label = ttk.Label(dialog_frame, text=current_name, width=40, relief=tk.SUNKEN, anchor="w")
-        name_display_label.grid(row=0, column=1, columnspan=2, padx=5, pady=5, sticky="ew")
+        name_entry_edit = ttk.Entry(dialog_frame, textvariable=name_var_edit, width=40)
+        name_entry_edit.grid(row=0, column=1, columnspan=2, padx=5, pady=5, sticky="ew")
         
         ttk.Label(dialog_frame, text=translate("Path:")).grid(row=1, column=0, padx=5, pady=5, sticky="w")
         
@@ -781,31 +810,35 @@ def on_edit_button_click(event=None):
         
         def _save_edit_and_close():
             new_path = path_var_edit.get().strip()
+            new_name = name_var_edit.get().strip()
             new_enabled = enabled_var_edit.get()
-            if not new_path: 
+            if not new_path:
                 messagebox.showerror(translate("Error"), translate("Path cannot be empty."), parent=edit_window)
                 return
-            new_monitor_name = os.path.basename(new_path)
-            if not new_monitor_name: 
+            process_name = os.path.basename(new_path)
+            if not process_name:
                 messagebox.showerror(translate("Error"), translate("Could not extract filename from path."), parent=edit_window)
                 return
-            if not new_monitor_name.lower().endswith(".exe"):
-                if not messagebox.askyesno(translate("Warning"), translate("Extracted name '{}' does not seem to be an .exe.\nSave anyway?").format(new_monitor_name), parent=edit_window): 
+            if not new_name: new_name = process_name  # Kein eigener Name eingegeben -> Dateiname als Anzeigename übernehmen
+            if not process_name.lower().endswith(".exe"):
+                if not messagebox.askyesno(translate("Warning"), translate("Extracted name '{}' does not seem to be an .exe.\nSave anyway?").format(process_name), parent=edit_window):
                     return
-            if new_monitor_name.lower() != current_name.lower():
+            new_path_normalized = os.path.normcase(os.path.normpath(new_path))
+            if new_path_normalized != os.path.normcase(os.path.normpath(current_path)):
                 for prog in program_list:
-                    if prog['section'] != selected_iid and prog['name'].lower() == new_monitor_name.lower(): 
-                        messagebox.showerror(translate("Error"), translate("Another program named '{}' already exists.").format(new_monitor_name), parent=edit_window)
+                    if prog['section'] != selected_iid and os.path.normcase(os.path.normpath(prog['path'])) == new_path_normalized:
+                        messagebox.showerror(translate("Error"), translate("Another program with this path already exists:\n{}").format(new_path), parent=edit_window)
                         return
             try:
-                config.set(selected_iid, 'Name', new_monitor_name)
+                config.set(selected_iid, 'Name', new_name)
                 config.set(selected_iid, 'Path', new_path)
+                config.set(selected_iid, 'ProcessName', process_name)
                 config.set(selected_iid, 'Enabled', str(new_enabled))
-                if save_config_to_file(): 
+                if save_config_to_file():
                     debug_log(f"INI nach Edit von {selected_iid} gespeichert.")
                     load_settings_and_programs()
                     edit_window.destroy()
-            except Exception as e_save: 
+            except Exception as e_save:
                 debug_log(f"FEHLER Speichern nach Edit: {e_save}")
                 messagebox.showerror(translate("Error"), translate("Error saving changes:").format(f"\n{e_save}"), parent=edit_window)
         
@@ -1023,6 +1056,7 @@ def update_gui_language():
         if lblStartDelay: lblStartDelay.config(text=translate("Start delay (s):"))
         if lblLanguage: lblLanguage.config(text=translate("Language:"))
         if lblPathAdd: lblPathAdd.config(text=translate("Path:"))
+        if lblNameAdd: lblNameAdd.config(text=translate("Name:"))
         if lblTheme: lblTheme.config(text=translate("Theme:"))
         if btnSaveConfig: btnSaveConfig.config(text=translate("Save settings"))
         if btnAddProg: btnAddProg.config(text=translate("Add"))
@@ -1038,7 +1072,7 @@ def update_gui_language():
         if r_dark: r_dark.config(text=translate("Dark"))
         if tree_programs:
             tree_programs.heading("nr", text=translate("Nr."))
-            tree_programs.heading("name", text=translate("Name (from path)"))
+            tree_programs.heading("name", text=translate("Name"))
             tree_programs.heading("path", text=translate("Path"))
             tree_programs.heading("enabled", text=translate("Activated"))
         
